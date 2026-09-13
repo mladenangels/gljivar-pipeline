@@ -58,6 +58,10 @@ jobs:
           printf 'machine urs.earthdata.nasa.gov login %s password %s\nmachine ftp.designer2.org login %s password %s\n' \
             "$EARTHDATA_USERNAME" "$EARTHDATA_PASSWORD" "$FTP_USER" "$FTP_PASS" > ~/.netrc
 
+      - name: Check Earthdata login
+        run: |
+          python -c "import imerg; f = imerg.fetch_day('2025-10-05', 'early'); assert f is not None and f.shape == (44, 62); print('Earthdata login OK')"
+
       - name: Compute
         run: python run_daily.py ${{ inputs.date }}
 
