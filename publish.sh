@@ -7,7 +7,14 @@ cd "$(dirname "$0")/out"
 FILE=$(python3 -c "import json; print(json.load(open('latest.json'))['file'])")
 REMOTE=designer2/gljivar/data
 
-lftp ftp.designer2.org -e "set ftp:ssl-allow yes; set ssl:verify-certificate no; set net:max-retries 3; \
+# CI passes FTP_USER / FTP_PASS; locally lftp falls back to ~/.netrc.
+AUTH=()
+if [ -n "${FTP_USER:-}" ]; then
+  export LFTP_PASSWORD="$FTP_PASS"
+  AUTH=(-u "$FTP_USER" --env-password)
+fi
+
+lftp "${AUTH[@]}" ftp.designer2.org -e "set ftp:ssl-allow yes; set ssl:verify-certificate no; set net:max-retries 3; \
   cd public_html; mkdir -p $REMOTE; cd $REMOTE; \
   put $FILE; put grid.json; put latest.json; \
   chmod 755 .; chmod 644 $FILE grid.json latest.json; quit"

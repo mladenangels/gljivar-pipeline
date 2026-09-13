@@ -65,6 +65,9 @@ jobs:
         run: python preview.py
 
       - name: Publish
+        env:
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
         run: ./publish.sh
 
       - name: Keep archive
