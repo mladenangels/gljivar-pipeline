@@ -1,0 +1,87 @@
+name: daily
+
+on:
+  schedule:
+    - cron: "17 6 * * *"   # 06:17 UTC; ICON-EU 00z and IMERG Early for yesterday are out by then
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Run date YYYY-MM-DD (empty = today UTC)"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: |
+          pip install -r requirements.txt
+          sudo apt-get install -y -qq lftp
+
+      - name: Restore ERA5-Land cache
+        uses: actions/cache@v4
+        with:
+          path: cache/era5land_*.nc
+          key: era5land-${{ github.run_id }}
+          restore-keys: era5land-
+
+      - name: Credentials
+        env:
+          CDSAPI_KEY: ${{ secrets.CDSAPI_KEY }}
+          EARTHDATA_USERNAME: ${{ secrets.EARTHDATA_USERNAME }}
+          EARTHDATA_PASSWORD: ${{ secrets.EARTHDATA_PASSWORD }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
+        run: |
+          umask 077
+          printf 'url: https://cds.climate.copernicus.eu/api\nkey: %s\n' "$CDSAPI_KEY" > ~/.cdsapirc
+          printf 'machine urs.earthdata.nasa.gov login %s password %s\nmachine ftp.designer2.org login %s password %s\n' \
+            "$EARTHDATA_USERNAME" "$EARTHDATA_PASSWORD" "$FTP_USER" "$FTP_PASS" > ~/.netrc
+
+      - name: Compute
+        run: python run_daily.py ${{ inputs.date }}
+
+      - name: Preview
+        run: python preview.py
+
+      - name: Publish
+        run: ./publish.sh
+
+      - name: Keep archive
+        run: |
+          git config user.name "gljivar-bot"
+          git config user.email "gljivar-bot@users.noreply.github.com"
+          git add archive out/latest.json out/grid.json
+          git diff --cached --quiet || git commit -q -m "data $(python3 -c "import json;print(json.load(open('out/latest.json'))['date'])")"
+          git push -q
+
+      - name: Upload preview
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview
+          path: out/preview-*.png
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Telegram on failure
+        if: failure()
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python notify.py "Gljivar: dnevni izračun NIJE uspio ($(date -u +%F)). ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

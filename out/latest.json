@@ -1,0 +1,85 @@
+{
+ "schemaVersion": 1,
+ "dataVersion": 20260913,
+ "date": "2026-09-13",
+ "generatedUtc": "2026-09-13T05:53:20Z",
+ "file": "forecast-2026-09-13.bin",
+ "layout": "uint8 percentile 0-100, [group][day][cell], cells as in grid.json",
+ "groups": [
+  "vrganj",
+  "lisicarka",
+  "suncanica",
+  "smrcak"
+ ],
+ "days": [
+  "2026-09-13",
+  "2026-09-14",
+  "2026-09-15",
+  "2026-09-16",
+  "2026-09-17",
+  "2026-09-18",
+  "2026-09-19",
+  "2026-09-20"
+ ],
+ "ecmwfRun": "2026-09-12T12Z",
+ "sources": {
+  "2026-09-07": [
+   "era5land",
+   "era5land"
+  ],
+  "2026-09-08": [
+   "imerg_late",
+   "filled"
+  ],
+  "2026-09-09": [
+   "imerg_late",
+   "filled"
+  ],
+  "2026-09-10": [
+   "imerg_late",
+   "ecmwf_an"
+  ],
+  "2026-09-11": [
+   "imerg_late",
+   "ecmwf_an"
+  ],
+  "2026-09-12": [
+   "imerg_early",
+   "ecmwf_an"
+  ],
+  "2026-09-13": [
+   "icon_fc",
+   "icon_fc"
+  ],
+  "2026-09-14": [
+   "icon_fc",
+   "icon_fc"
+  ],
+  "2026-09-15": [
+   "icon_fc",
+   "icon_fc"
+  ],
+  "2026-09-16": [
+   "icon_fc",
+   "icon_fc"
+  ],
+  "2026-09-17": [
+   "icon_fc",
+   "icon_fc"
+  ],
+  "2026-09-18": [
+   "ecmwf_fc",
+   "ecmwf_fc"
+  ],
+  "2026-09-19": [
+   "ecmwf_fc",
+   "ecmwf_fc"
+  ],
+  "2026-09-20": [
+   "ecmwf_fc",
+   "ecmwf_fc"
+  ]
+ },
+ "imergScaled": true,
+ "attribution": "Contains modified Copernicus Climate Change Service information (ERA5-Land); NASA GPM IMERG; DWD ICON-EU (CC BY 4.0); ECMWF open data (CC BY 4.0)."
+}

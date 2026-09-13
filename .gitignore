@@ -1,0 +1,5 @@
+cache/
+__pycache__/
+out/forecast-*.bin
+out/preview-*.png
+*.part
