@@ -2,9 +2,9 @@
  "schemaVersion": 1,
  "dataVersion": 20260913,
  "date": "2026-09-13",
- "generatedUtc": "2026-09-13T07:14:52Z",
+ "generatedUtc": "2026-09-13T07:38:16Z",
  "file": "forecast-2026-09-13.bin",
- "layout": "uint8 percentile 0-100, [group][day][cell], cells as in grid.json",
+ "layout": "uint8 score 0-100 (percentile x season weight), [group][day][cell], cells as in grid.json",
  "groups": [
   "vrganj",
   "lisicarka",
@@ -21,7 +21,7 @@
   "2026-09-19",
   "2026-09-20"
  ],
- "ecmwfRun": "2026-09-12T12Z",
+ "ecmwfRun": "2026-09-13T00Z",
  "sources": {
   "2026-09-07": [
    "era5land",
