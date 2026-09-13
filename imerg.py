@@ -34,6 +34,10 @@ def _session():
 def _listing(product, year, month):
     url = f"{BASE}/data/GPM_L3/{product}/{year}/{month:02d}/"
     r = _get(url)
+    # A failed login ends on the Earthdata login page with HTTP 200, which would otherwise
+    # read as "no files yet" and silently drop IMERG.
+    if "urs.earthdata.nasa.gov" in r.url or "3B-DAY-" not in r.text:
+        raise SystemExit(f"IMERG listing not readable (Earthdata login failed?): {r.url}")
     return sorted(set(re.findall(r'3B-DAY-[EL]\.MS\.MRG\.3IMERG\.\d{8}-S000000-E235959\.V\w+\.nc4(?=")', r.text)))
 
 
