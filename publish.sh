@@ -14,7 +14,7 @@ if [ -n "${FTP_USER:-}" ]; then
   AUTH=(-u "$FTP_USER" --env-password)
 fi
 
-lftp "${AUTH[@]}" ftp.designer2.org -e "set ftp:ssl-allow yes; set ssl:verify-certificate no; set net:max-retries 3; \
+lftp ${AUTH[@]+"${AUTH[@]}"} ftp.designer2.org -e "set ftp:ssl-allow yes; set ssl:verify-certificate no; set net:max-retries 3; \
   cd public_html; mkdir -p $REMOTE; cd $REMOTE; \
   put $FILE; put grid.json; put latest.json; \
   chmod 755 .; chmod 644 $FILE grid.json latest.json; quit"
