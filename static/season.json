@@ -1,0 +1,119 @@
+{
+ "note": "Season multiplier per month (Jan..Dec) on the percentile, linear between the 15th of each month. 1 = full season, 0.5 caps the score at 50 (possible, never 'odlicno'), 0 = off season. Continental from the monthly share of GBIF finds (AT/SI/HR/CH/DE) plus Croatian spring vrganji in May; mediterranean later in autumn and earlier in spring. DRAFT - to be reviewed by a mycologist.",
+ "cont": {
+  "vrganj": [
+   0.0,
+   0.0,
+   0.0,
+   0.2,
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   0.5,
+   0.05
+  ],
+  "lisicarka": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.5,
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   0.9,
+   0.4,
+   0.0
+  ],
+  "suncanica": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.3,
+   0.8,
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   0.7,
+   0.05
+  ],
+  "smrcak": [
+   0.0,
+   0.1,
+   0.6,
+   1.0,
+   1.0,
+   0.3,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ]
+ },
+ "med": {
+  "vrganj": [
+   0.1,
+   0.0,
+   0.0,
+   0.3,
+   1.0,
+   0.8,
+   0.5,
+   0.6,
+   1.0,
+   1.0,
+   1.0,
+   0.5
+  ],
+  "lisicarka": [
+   0.1,
+   0.0,
+   0.0,
+   0.0,
+   0.3,
+   0.7,
+   0.6,
+   0.6,
+   1.0,
+   1.0,
+   0.8,
+   0.4
+  ],
+  "suncanica": [
+   0.1,
+   0.0,
+   0.0,
+   0.0,
+   0.2,
+   0.4,
+   0.5,
+   0.7,
+   1.0,
+   1.0,
+   1.0,
+   0.5
+  ],
+  "smrcak": [
+   0.0,
+   0.4,
+   1.0,
+   1.0,
+   0.5,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ]
+ }
+}

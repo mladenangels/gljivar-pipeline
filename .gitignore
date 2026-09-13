@@ -3,3 +3,4 @@ __pycache__/
 out/forecast-*.bin
 out/preview-*.png
 *.part
+out/replay-*.png

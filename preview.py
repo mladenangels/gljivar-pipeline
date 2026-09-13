@@ -19,7 +19,7 @@ LABEL = {"vrganj": "vrganji", "lisicarka": "lisičarke", "suncanica": "sunčanic
 
 
 def borders():
-    geo = json.loads((C.ROOT / "static" / "borders.geojson").read_text())
+    geo = json.loads((C.ROOT / "static" / "borders10.geojson").read_text())
     out = []
     for f in geo["features"]:
         if f["properties"]["ADM0_A3"] not in ("HRV", "SVN", "BIH", "SRB", "MNE", "HUN", "ITA"):

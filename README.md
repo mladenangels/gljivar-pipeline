@@ -13,9 +13,9 @@ Croatia, scores four mushroom groups for today + 7 days, and publishes the resul
 | `publish.sh` | FTPS upload + HTTP check |
 | `notify.py` | Telegram message (failures) |
 | `archive/` | per-day inputs ERA5-Land does not cover yet; committed by the job, do not delete |
-| `static/` | grid, elevation, borders, IMERG monthly scale factors |
+| `static/` | grid (Croatian cells incl. coast, borrowed weather cells, forest share, mediterranean zone), season multipliers, elevation, borders, IMERG monthly scale factors |
 
-Local-only (need `../backtest` data): `export_model.py`, `grid.py` (build), `calib_imerg.py`, `imerg_factors.py`.
+Local-only (need `../backtest` data, plus rasterio/shapely/pyshp for the grid): `export_model.py`, `grid.py` (build), `calib_imerg.py`, `imerg_factors.py`, `replay.py`.
 
 Secrets: `CDSAPI_KEY`, `EARTHDATA_USERNAME`, `EARTHDATA_PASSWORD`, `FTP_USER`, `FTP_PASS`,
 `TELEGRAM_TOKEN`, `TELEGRAM_CHAT_ID`.

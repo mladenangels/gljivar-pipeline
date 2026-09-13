@@ -105,20 +105,17 @@ def pick_temp(day):
 
 # ---------------------------------------------------------------- model
 
-def score_cube(model, rain, temp, t_index, cells):
-    """Percentile 0-100 per group, target day, cell."""
-    from model import features
-    iy, ix = cells
+def score_cube(model, season, rain, temp, days, t_index, src, med):
+    """Score 0-100 per group, target day, cell. `src` = (iy, ix) of each cell's weather cell."""
+    from model import score
+    iy, ix = src
     out = np.zeros((len(C.GROUPS), len(t_index), len(iy)), "uint8")
     for j, t in enumerate(t_index):
         R = rain[t - np.arange(C.RR_LAGS)][:, iy, ix].T.astype("float64")
         T = temp[t - np.arange(C.TG_LAGS)][:, iy, ix].T.astype("float64")
-        X, _ = features(R, T)
+        s = score(model, season, R, T, days[t], med)
         for g, name in enumerate(C.GROUPS):
-            m = model["groups"][name]
-            u = ((X - np.array(m["mu"])) / np.array(m["sd"])) @ np.array(m["beta"])
-            ref = np.array(m["ref_quantiles"])
-            out[g, j] = np.clip(np.round(np.interp(u, ref, np.linspace(0, 100, len(ref)))), 0, 100)
+            out[g, j] = s[name]
     return out
 
 
@@ -196,12 +193,14 @@ def main(today):
 
     hr = grid["hr"]
     iy, ix = np.where(hr)
-    bad = ~(np.isfinite(rain[:, iy, ix]).all() and np.isfinite(temp[:, iy, ix]).all())
-    if bad:
-        raise SystemExit("NaN in Croatian cells")
+    siy, six = grid["src_iy"][iy, ix], grid["src_ix"][iy, ix]
+    if not (np.isfinite(rain[:, siy, six]).all() and np.isfinite(temp[:, siy, six]).all()):
+        raise SystemExit("NaN in the weather cells used by Croatia")
 
+    season = json.loads((C.ROOT / "static" / "season.json").read_text())
+    med = grid["med"][iy, ix]
     t_index = [days.get_loc(today + pd.Timedelta(days=k)) for k in range(C.FORECAST_DAYS)]
-    cube = score_cube(model, rain, temp, t_index, (iy, ix))
+    cube = score_cube(model, season, rain, temp, days, t_index, (siy, six), med)
 
     C.OUT.mkdir(exist_ok=True)
     name = f"forecast-{today:%Y-%m-%d}.bin"
@@ -210,14 +209,16 @@ def main(today):
         "schemaVersion": SCHEMA, "lat0": C.LAT0, "lon0": C.LON0, "step": C.STEP,
         "ny": int(hr.shape[0]), "nx": int(hr.shape[1]),
         "cells": [[int(a), int(b)] for a, b in zip(iy, ix)],
-        "elev": [int(round(float(v))) for v in grid["elev"][iy, ix]]}))
+        "elev": [int(round(float(v))) for v in grid["elev"][siy, six]],
+        "forestPct": [int(round(float(v) * 100)) for v in grid["tree"][iy, ix]],
+        "mediterranean": [int(v) for v in med]}))
     meta = {
         "schemaVersion": SCHEMA,
         "dataVersion": int(f"{today:%Y%m%d}"),
         "date": f"{today:%Y-%m-%d}",
         "generatedUtc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "file": name,
-        "layout": "uint8 percentile 0-100, [group][day][cell], cells as in grid.json",
+        "layout": "uint8 score 0-100 (percentile x season weight), [group][day][cell], cells as in grid.json",
         "groups": C.GROUPS,
         "days": [f"{today + pd.Timedelta(days=k):%Y-%m-%d}" for k in range(C.FORECAST_DAYS)],
         "ecmwfRun": f"{run:%Y-%m-%dT%HZ}",
