@@ -47,8 +47,13 @@ jobs:
           EARTHDATA_PASSWORD: ${{ secrets.EARTHDATA_PASSWORD }}
           FTP_USER: ${{ secrets.FTP_USER }}
           FTP_PASS: ${{ secrets.FTP_PASS }}
+          EARTHDATA_TOKEN: ${{ secrets.EARTHDATA_TOKEN }}
         run: |
           umask 077
+          # The 60-day token is only a stopgap until EARTHDATA_PASSWORD is set.
+          if [ -z "$EARTHDATA_PASSWORD" ] && [ -n "$EARTHDATA_TOKEN" ]; then
+            printf '%s' "$EARTHDATA_TOKEN" > ~/.gljivar_edl_token
+          fi
           printf 'url: https://cds.climate.copernicus.eu/api\nkey: %s\n' "$CDSAPI_KEY" > ~/.cdsapirc
           printf 'machine urs.earthdata.nasa.gov login %s password %s\nmachine ftp.designer2.org login %s password %s\n' \
             "$EARTHDATA_USERNAME" "$EARTHDATA_PASSWORD" "$FTP_USER" "$FTP_PASS" > ~/.netrc
