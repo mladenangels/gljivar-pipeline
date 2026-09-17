@@ -14,7 +14,7 @@ import config as C
 
 
 def _month_file(y, m):
-    return C.CACHE / f"era5land_{y}{m:02d}.nc"
+    return C.CACHE / f"era5land_{C.GRID_TAG}_{y}{m:02d}.nc"
 
 
 def _download(y, m, target):

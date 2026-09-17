@@ -1,4 +1,4 @@
-"""Daily job: stitch observed + forecast weather, score every Croatian cell, write out/.
+"""Daily job: stitch observed + forecast weather, score every grid cell, write out/.
 
 Weather per day, best source first:
   rain  ERA5-Land > IMERG Late > IMERG Early (both scaled by month to ERA5-Land) > ECMWF run of that day > archived forecast
@@ -31,7 +31,7 @@ SCHEMA = 1
 # ---------------------------------------------------------------- archive
 
 def _arch(day, source):
-    return C.ARCHIVE / f"{day:%Y-%m-%d}" / f"{source}.npz"
+    return C.ARCHIVE / C.GRID_TAG / f"{day:%Y-%m-%d}" / f"{source}.npz"
 
 
 def save(day, source, rain=None, temp=None):
@@ -195,7 +195,7 @@ def main(today):
     iy, ix = np.where(hr)
     siy, six = grid["src_iy"][iy, ix], grid["src_ix"][iy, ix]
     if not (np.isfinite(rain[:, siy, six]).all() and np.isfinite(temp[:, siy, six]).all()):
-        raise SystemExit("NaN in the weather cells used by Croatia")
+        raise SystemExit("NaN in the weather cells the grid uses")
 
     season = json.loads((C.ROOT / "static" / "season.json").read_text())
     med = grid["med"][iy, ix]
@@ -211,7 +211,9 @@ def main(today):
         "cells": [[int(a), int(b)] for a, b in zip(iy, ix)],
         "elev": [int(round(float(v))) for v in grid["elev"][siy, six]],
         "forestPct": [int(round(float(v) * 100)) for v in grid["tree"][iy, ix]],
-        "mediterranean": [int(v) for v in med]}))
+        "mediterranean": [int(v) for v in med],
+        "countries": [C.COUNTRY_CODES[str(c)] for c in grid["countries"]],
+        "country": [int(v) for v in grid["country"][iy, ix]]}))
     meta = {
         "schemaVersion": SCHEMA,
         "dataVersion": int(f"{today:%Y%m%d}"),
@@ -229,7 +231,7 @@ def main(today):
                        "NASA GPM IMERG; DWD ICON-EU (CC BY 4.0); ECMWF open data (CC BY 4.0).",
     }
     (C.OUT / "latest.json").write_text(json.dumps(meta, indent=1))
-    log(f"wrote {name}: {cube.nbytes} bytes; HR mean per group/day:")
+    log(f"wrote {name}: {cube.nbytes} bytes; grid mean per group/day:")
     for g, n in enumerate(C.GROUPS):
         log(f"  {n:10s}", " ".join(f"{cube[g, j].mean():5.1f}" for j in range(C.FORECAST_DAYS)))
     return meta
