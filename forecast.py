@@ -1,6 +1,7 @@
 """Forecast and short-range analysis fields on the output grid.
 
-ICON-EU (DWD, CC BY 4.0): 0.0625 deg, 00z run, days D..D+4 (the run stops at +120 h).
+ICON-EU (DWD, CC BY 4.0): 0.0625 deg, any 00z/12z run, every day the run covers whole
+(it stops at +120 h, so a 00z run gives D..D+4 and a 12z run D+1..D+4).
 ECMWF IFS open data (CC BY 4.0): 0.25 deg, any 00z/12z run, used for D+5..D+7 and, from the
 run started at 00z of a past day, as that day's temperature (the "analysis" the job archives).
 
@@ -19,7 +20,8 @@ import config as C
 import grid as G
 
 LAPSE = -0.0065
-ICON = "https://opendata.dwd.de/weather/nwp/icon-eu/grib/00"
+ICON = "https://opendata.dwd.de/weather/nwp/icon-eu/grib"
+ICON_MAX_STEP = 120
 
 
 def _open(path, **filt):
@@ -39,13 +41,19 @@ def _regrid(da):
 
 # ---------------------------------------------------------------- ICON-EU
 
-def _icon_file(var, run, step, invariant=False):
+def _icon_name(var, run, step, invariant=False):
     kind = "time-invariant" if invariant else "single-level"
-    tail = f"{run:%Y%m%d}00_{var.upper()}" if invariant else f"{run:%Y%m%d}00_{step:03d}_{var.upper()}"
-    name = f"icon-eu_europe_regular-lat-lon_{kind}_{tail}.grib2"
+    stamp = f"{run:%Y%m%d%H}"
+    tail = f"{stamp}_{var.upper()}" if invariant else f"{stamp}_{step:03d}_{var.upper()}"
+    return f"icon-eu_europe_regular-lat-lon_{kind}_{tail}.grib2"
+
+
+def _icon_file(var, run, step, invariant=False):
+    run = pd.Timestamp(run)
+    name = _icon_name(var, run, step, invariant)
     target = C.CACHE / name
     if not target.exists():
-        r = requests.get(f"{ICON}/{var}/{name}.bz2", timeout=120)
+        r = requests.get(f"{ICON}/{run:%H}/{var}/{name}.bz2", timeout=120)
         if r.status_code == 404:
             raise FileNotFoundError(name)
         r.raise_for_status()
@@ -54,25 +62,51 @@ def _icon_file(var, run, step, invariant=False):
     return target
 
 
+def icon_latest_run(now=None):
+    """Newest ICON-EU 00z/12z run whose +120 h fields are already published.
+
+    DWD needs about three hours to finish a run, so before 03z the newest complete one is
+    yesterday's 12z. Only the last runs stay on the open-data server, so we look back a day.
+    """
+    now = pd.Timestamp(now) if now is not None else pd.Timestamp.utcnow().tz_localize(None)
+    base = pd.Timestamp(now).normalize()
+    cand = [base + pd.Timedelta(hours=h) for h in (12, 0)] + \
+           [base - pd.Timedelta(days=1) + pd.Timedelta(hours=h) for h in (12, 0)]
+    for run in cand:
+        if run > now:
+            continue
+        name = _icon_name("tot_prec", run, ICON_MAX_STEP)
+        if requests.head(f"{ICON}/{run:%H}/tot_prec/{name}.bz2", timeout=60).status_code == 200:
+            return run
+    raise FileNotFoundError("no complete ICON-EU run on opendata.dwd.de")
+
+
 def icon_eu(run):
-    """{day: (rain, temp)} for run day D..D+4 from the 00z ICON-EU run of `run`."""
-    run = pd.Timestamp(run).normalize()
+    """{day: (rain, temp)} for every whole day the given ICON-EU 00z/12z run covers."""
+    run = pd.Timestamp(run)
     elev = G.load()["elev"]
     with _open(_icon_file("hsurf", run, 0, invariant=True)) as d:
         z_model = _regrid(d[list(d.data_vars)[0]])
+
+    def tot_prec(step):
+        # tot_prec accumulates from the run start; step 0 is the zero it starts from.
+        if step == 0:
+            return 0.0
+        with _open(_icon_file("tot_prec", run, step)) as d:
+            return _regrid(d["tp"])
+
     out = {}
-    tp_prev = 0.0
-    for k in range(5):
-        with _open(_icon_file("tot_prec", run, 24 * (k + 1))) as d:
-            tp = _regrid(d["tp"])
-        rain = np.maximum(tp - tp_prev, 0.0)
-        tp_prev = tp
+    for day in pd.date_range(run.normalize(), run.normalize() + pd.Timedelta(days=5)):
+        h0 = int((day - run) / pd.Timedelta(hours=1))
+        if h0 < 0 or h0 + 24 > ICON_MAX_STEP:
+            continue
+        rain = np.maximum(tot_prec(h0 + 24) - tot_prec(h0), 0.0)
         temps = []
         for h in (0, 6, 12, 18):
-            with _open(_icon_file("t_2m", run, 24 * k + h)) as d:
+            with _open(_icon_file("t_2m", run, h0 + h)) as d:
                 temps.append(_regrid(d["t2m"]))
         temp = np.mean(temps, 0) - 273.15 + LAPSE * (elev - z_model)
-        out[run + pd.Timedelta(days=k)] = (rain.astype("float32"), temp.astype("float32"))
+        out[day] = (rain.astype("float32"), temp.astype("float32"))
     return out
 
 

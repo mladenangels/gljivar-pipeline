@@ -3,18 +3,19 @@
 Weather per day, best source first:
   rain  ERA5-Land > IMERG Late > IMERG Early (both scaled by month to ERA5-Land) > ECMWF run of that day > archived forecast
   temp  ERA5-Land > ECMWF run of that day > archived forecast > linear fill (at most 2 days)
-  D..D+4 ICON-EU 00z (fallback ECMWF), D+5..D+7 ECMWF.
+  D..D+4 the newest complete ICON-EU 00z/12z run (fallback ECMWF), the rest ECMWF.
 
 Everything fetched for a day that ERA5-Land does not cover yet is kept in archive/<day>/,
 because ECMWF keeps only 4 days and DWD only the latest run. The archive must persist
 between runs (commit it, or keep it on the server).
 
-Usage: run_daily.py [YYYY-MM-DD]   (default: today, UTC)
+Usage: run_daily.py [YYYY-MM-DD]   (default: today in Croatia, see TZ below)
 """
 import json
 import sys
 import traceback
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
@@ -26,6 +27,11 @@ import grid as G
 import imerg
 
 SCHEMA = 1
+
+# "Today" is the day the app's users are in, not the UTC day: a job that runs at 23z has
+# to forecast the date Croatia has already turned to, or a picker leaving at 4 am gets a
+# forecast that starts yesterday.
+TZ = ZoneInfo("Europe/Zagreb")
 
 
 # ---------------------------------------------------------------- archive
@@ -145,9 +151,14 @@ def main(today):
     collect_gap(today, gap)
 
     log("ICON-EU")
+    icon_run = None
     try:
-        for d, (r, t) in F.icon_eu(today).items():
+        # The newest complete run, not today's 00z: before ~03z DWD has only yesterday's 12z,
+        # and the early-morning job must not wait for a run that is still being computed.
+        icon_run = F.icon_latest_run()
+        for d, (r, t) in F.icon_eu(icon_run).items():
             save(d, "icon_fc", rain=r, temp=t)
+        log(f"ICON-EU run {icon_run:%Y-%m-%d %H}z")
     except Exception as e:
         log(f"ICON-EU failed, ECMWF only: {str(e)[:160]}")
 
@@ -214,16 +225,20 @@ def main(today):
         "mediterranean": [int(v) for v in med],
         "countries": [C.COUNTRY_CODES[str(c)] for c in grid["countries"]],
         "country": [int(v) for v in grid["country"][iy, ix]]}))
+    now = datetime.now(timezone.utc)
     meta = {
         "schemaVersion": SCHEMA,
-        "dataVersion": int(f"{today:%Y%m%d}"),
+        # Generation hour, not the forecast date: the job runs twice a day, so two runs for
+        # the same date must still compare as newer and older in the app.
+        "dataVersion": int(f"{now:%Y%m%d%H}"),
         "date": f"{today:%Y-%m-%d}",
-        "generatedUtc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "generatedUtc": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "file": name,
         "layout": "uint8 score 0-100 (percentile x season weight), [group][day][cell], cells as in grid.json",
         "groups": C.GROUPS,
         "days": [f"{today + pd.Timedelta(days=k):%Y-%m-%d}" for k in range(C.FORECAST_DAYS)],
         "ecmwfRun": f"{run:%Y-%m-%dT%HZ}",
+        "iconRun": None if icon_run is None else f"{icon_run:%Y-%m-%dT%HZ}",
         "sources": {f"{d:%Y-%m-%d}": [src_rain[i], src_temp[i]] for i, d in enumerate(days)
                     if d > last_obs - pd.Timedelta(days=1)},
         "imergScaled": factors is not None,
@@ -238,7 +253,7 @@ def main(today):
 
 
 if __name__ == "__main__":
-    arg = sys.argv[1] if len(sys.argv) > 1 else datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    arg = sys.argv[1] if len(sys.argv) > 1 else datetime.now(TZ).strftime("%Y-%m-%d")
     try:
         main(arg)
     except BaseException:
