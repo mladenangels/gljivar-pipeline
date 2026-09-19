@@ -164,6 +164,9 @@ def main(today):
 
     log("ECMWF forecast")
     run = F.ecmwf_latest_run()
+    # A late-evening run for today's date finds today's 12z run already out, and that one
+    # cannot give today's 00-24 total. Today's 00z run still reaches the last day.
+    run = min(run, today)
     fc_days = pd.date_range(today, last)
     for d, (r, t) in F.ecmwf_days(run, fc_days).items():
         save(d, "ecmwf_fc", rain=r, temp=t)
