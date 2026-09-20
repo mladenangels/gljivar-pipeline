@@ -70,15 +70,22 @@ def log(*a):
 
 def collect_gap(today, gap_days):
     """Fetch and archive IMERG + ECMWF for days ERA5-Land does not cover yet."""
+    imerg_up = True
     for day in gap_days:
-        if not _arch(day, "imerg_late").exists():
-            f = imerg.fetch_day(day, "late")
-            if f is not None:
-                save(day, "imerg_late", rain=f)
-            elif not _arch(day, "imerg_early").exists():
-                f = imerg.fetch_day(day, "early")
+        if imerg_up and not _arch(day, "imerg_late").exists():
+            try:
+                f = imerg.fetch_day(day, "late")
                 if f is not None:
-                    save(day, "imerg_early", rain=f)
+                    save(day, "imerg_late", rain=f)
+                elif not _arch(day, "imerg_early").exists():
+                    f = imerg.fetch_day(day, "early")
+                    if f is not None:
+                        save(day, "imerg_early", rain=f)
+            except imerg.Unavailable as e:
+                # Every gap day would hit the same dead server, so stop asking. pick_rain
+                # falls back to ECMWF/ICON and latest.json["sources"] records which it used.
+                log(f"IMERG unavailable, falling back to ECMWF/ICON rain: {str(e)[:160]}")
+                imerg_up = False
         if not _arch(day, "ecmwf_an").exists() and day >= today - pd.Timedelta(days=4):
             try:
                 (rain, temp), = F.ecmwf_days(day, [day]).values()

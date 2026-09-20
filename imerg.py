@@ -20,6 +20,12 @@ BASE = "https://gpm1.gesdisc.eosdis.nasa.gov"
 PRODUCTS = {"late": "GPM_3IMERGDL.07", "early": "GPM_3IMERGDE.07"}
 
 
+class Unavailable(RuntimeError):
+    """GES DISC did not answer. IMERG is one rain source of several, so the caller falls
+    back to ECMWF/ICON rather than failing the day. A rejected login raises SystemExit
+    instead - that one never fixes itself."""
+
+
 @functools.lru_cache(maxsize=1)
 def _session():
     """Bearer token if ~/.gljivar_edl_token exists (local), otherwise Earthdata login from
@@ -41,18 +47,21 @@ def _listing(product, year, month):
     return sorted(set(re.findall(r'3B-DAY-[EL]\.MS\.MRG\.3IMERG\.\d{8}-S000000-E235959\.V\w+\.nc4(?=")', r.text)))
 
 
-def _get(url, tries=5):
+def _get(url, tries=4):
+    """Budget about two and a half minutes: long enough to ride out a blip, short enough
+    that a real GES DISC outage does not eat the run before ICON and ECMWF are fetched."""
     for k in range(tries):
         try:
-            r = _session().get(url, timeout=60)
+            r = _session().get(url, timeout=30)
             if r.status_code == 200:
                 return r
             if r.status_code in (401, 403):
                 raise SystemExit(f"IMERG auth failed ({r.status_code}) - Earthdata token expired?")
         except requests.RequestException:
             pass
-        time.sleep(3 * (k + 1))
-    raise RuntimeError(f"IMERG download failed: {url}")
+        if k < tries - 1:
+            time.sleep(5 * (k + 1))
+    raise Unavailable(f"IMERG download failed: {url}")
 
 
 def _index_ranges():
@@ -96,3 +105,16 @@ def best_day(day):
         if f is not None:
             return f, kind
     return None, None
+
+
+def check_login():
+    """Preflight for the daily job: prove the Earthdata credentials still work. A server
+    that is merely down is not a reason to stop - the run degrades to ECMWF/ICON rain."""
+    try:
+        f = fetch_day("2025-10-05", "early")
+    except Unavailable as e:
+        print(f"Earthdata login NOT CHECKED - GES DISC unreachable: {e}")
+        return
+    if f is None or f.shape != (len(C.lats()), len(C.lons())):
+        raise SystemExit(f"IMERG preflight returned {None if f is None else f.shape}")
+    print("Earthdata login OK", f.shape)
