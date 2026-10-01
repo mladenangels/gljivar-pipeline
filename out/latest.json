@@ -1,8 +1,8 @@
 {
  "schemaVersion": 1,
- "dataVersion": 2026100108,
+ "dataVersion": 2026100114,
  "date": "2026-10-01",
- "generatedUtc": "2026-10-01T08:26:24Z",
+ "generatedUtc": "2026-10-01T14:47:40Z",
  "file": "forecast-2026-10-01.bin",
  "layout": "uint8 score 0-100 (percentile x season weight), [group][day][cell], cells as in grid.json",
  "groups": [
@@ -101,7 +101,7 @@
    "ecmwf_an"
   ],
   "2026-09-30": [
-   "imerg_early",
+   "imerg_late",
    "ecmwf_an"
   ],
   "2026-10-01": [
