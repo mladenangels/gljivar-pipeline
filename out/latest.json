@@ -1,9 +1,9 @@
 {
  "schemaVersion": 1,
- "dataVersion": 2026100516,
- "date": "2026-10-05",
- "generatedUtc": "2026-10-05T16:23:25Z",
- "file": "forecast-2026-10-05.bin",
+ "dataVersion": 2026100601,
+ "date": "2026-10-06",
+ "generatedUtc": "2026-10-06T01:01:53Z",
+ "file": "forecast-2026-10-06.bin",
  "layout": "uint8 score 0-100 (percentile x season weight), [group][day][cell], cells as in grid.json",
  "groups": [
   "vrganj",
@@ -12,16 +12,16 @@
   "smrcak"
  ],
  "days": [
-  "2026-10-05",
   "2026-10-06",
   "2026-10-07",
   "2026-10-08",
   "2026-10-09",
   "2026-10-10",
   "2026-10-11",
-  "2026-10-12"
+  "2026-10-12",
+  "2026-10-13"
  ],
- "ecmwfRun": "2026-10-05T00Z",
+ "ecmwfRun": "2026-10-05T12Z",
  "iconRun": "2026-10-05T12Z",
  "sources": {
   "2026-09-11": [
@@ -121,8 +121,8 @@
    "ecmwf_an"
   ],
   "2026-10-05": [
-   "icon_fc",
-   "icon_fc"
+   "ecmwf_an",
+   "ecmwf_an"
   ],
   "2026-10-06": [
    "icon_fc",
@@ -149,6 +149,10 @@
    "ecmwf_fc"
   ],
   "2026-10-12": [
+   "ecmwf_fc",
+   "ecmwf_fc"
+  ],
+  "2026-10-13": [
    "ecmwf_fc",
    "ecmwf_fc"
   ]
