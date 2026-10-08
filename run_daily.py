@@ -1,7 +1,7 @@
 """Daily job: stitch observed + forecast weather, score every grid cell, write out/.
 
 Weather per day, best source first:
-  rain  ERA5-Land > IMERG Late > IMERG Early (both scaled by month to ERA5-Land) > ECMWF run of that day > archived forecast
+  rain  ERA5-Land > ERA5 > IMERG Late > IMERG Early (both scaled by month to ERA5-Land) > ECMWF run of that day > archived forecast
   temp  ERA5-Land > ECMWF run of that day > archived forecast > linear fill (at most 2 days)
   D..D+4 the newest complete ICON-EU 00z/12z run (fallback ECMWF), the rest ECMWF.
 
@@ -21,6 +21,7 @@ import numpy as np
 import pandas as pd
 
 import config as C
+import era5
 import era5land
 import forecast as F
 import grid as G
@@ -153,6 +154,23 @@ def main(today):
     last_obs = e_days[-1] if len(e_days) else first - pd.Timedelta(days=1)
     gap = pd.date_range(last_obs + pd.Timedelta(days=1), today - pd.Timedelta(days=1))
     log(f"ERA5-Land to {last_obs:%Y-%m-%d}; gap {len(gap)} days")
+    if len(gap) in (11, 25):
+        # ERA5-Land normally lags ~6 days. From 2026-09-12 CDS stopped extending it for weeks
+        # and nobody noticed; ERA5 below covers the rain, but someone should look.
+        try:
+            import notify
+            notify.send(f"Gljivar: ERA5-Land kasni {len(gap)} dana (zadnji dan {last_obs:%Y-%m-%d}). "
+                        "Kiša ide iz ERA5, provjeri CDS.")
+        except Exception as e:
+            log(f"notify failed: {e}")
+
+    log("ERA5 rain for the gap")
+    try:
+        e5_rain = era5.fetch(gap, today)
+        log(f"ERA5 covers {len(e5_rain)} of {len(gap)} gap days")
+    except Exception as e:
+        e5_rain = {}
+        log(f"ERA5 failed, IMERG/ECMWF rain for the gap: {str(e)[:160]}")
 
     log("IMERG + ECMWF for the gap")
     collect_gap(today, gap)
@@ -184,7 +202,7 @@ def main(today):
         if src_rain[i] == "era5land":
             continue
         if d < today:
-            r, sr = pick_rain(d, factors)
+            r, sr = (e5_rain[d], "era5") if d in e5_rain else pick_rain(d, factors)
             t, st = pick_temp(d)
         else:
             r, sr, t, st = None, None, None, None
@@ -252,6 +270,7 @@ def main(today):
         "sources": {f"{d:%Y-%m-%d}": [src_rain[i], src_temp[i]] for i, d in enumerate(days)
                     if d > last_obs - pd.Timedelta(days=1)},
         "imergScaled": factors is not None,
+        "era5landLagDays": len(gap),
         "attribution": "Contains modified Copernicus Climate Change Service information (ERA5-Land); "
                        "NASA GPM IMERG; DWD ICON-EU (CC BY 4.0); ECMWF open data (CC BY 4.0).",
     }

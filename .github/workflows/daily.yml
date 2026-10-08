@@ -50,7 +50,9 @@ jobs:
       - name: Restore ERA5-Land cache
         uses: actions/cache@v4
         with:
-          path: cache/era5land_*.nc
+          path: |
+            cache/era5land_*.nc
+            cache/era5_*.nc
           key: era5land-${{ github.run_id }}
           restore-keys: era5land-
 
@@ -78,6 +80,9 @@ jobs:
         run: python -c "import imerg; imerg.check_login()"
 
       - name: Compute
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python run_daily.py ${{ inputs.date }}
 
       - name: Preview

@@ -6,6 +6,14 @@ on all core years (AT+SI+HR 2011-2025) instead of 2011-2019. The replication reg
 
 Score shown in the app = percentile of the model's log-odds among control days in the fit,
 so 80 means "better than 80 % of ordinary days at the same places".
+
+Groups in SEASONAL get two fits (schemaVersion 2): `summer` on finds outside AUTUMN_MONTHS and
+`autumn` on finds in them, each with its own percentile reference; model.score blends them by
+date. Checked 2026-10-08 after FB feedback ("Pohorje excellent, score low"): with one fit, real
+vrganj finds in Oct-Nov above 600 m scored a median 33 (season weight included). Fitted on
+2011-2019 and scored on 2020-2025, the seasonal vrganj model raises that to 60 and the AUC
+from 0.634 to 0.642 (CH/DE 0.653 -> 0.650). The same split made sunčanica and lisičarka worse
+(0.671 -> 0.643, 0.595 -> 0.579), so they keep one fit.
 """
 import json
 import sys
@@ -20,6 +28,22 @@ from analyze import D, Matched  # noqa: E402
 from model2 import RAIN_BINS, features, fit_clogit, padded_sets  # noqa: E402
 
 N_QUANTILES = 1001
+SEASONAL = {"vrganj"}
+AUTUMN_MONTHS = [9, 10, 11, 12, 1]
+
+
+def fit_part(s, X, mask, gm, repl):
+    """One conditional-logit fit on the finds in `mask`, percentile reference from its controls."""
+    mu, sd = X[mask].mean(0), X[mask].std(0) + 1e-9
+    Xs = (X - mu) / sd
+    m_tr = Matched(s, "within", mask)
+    beta = fit_clogit(Xs, padded_sets(m_tr))
+    score = Xs @ beta
+    ref = np.quantile(score[m_tr.ctl], np.linspace(0, 1, N_QUANTILES))
+    auc_tr, auc_rep = m_tr.auc(score), Matched(s, "within", gm & repl).auc_ci(score)
+    part = {"mu": mu.tolist(), "sd": sd.tolist(), "beta": beta.tolist(), "ref_quantiles": ref.tolist(),
+            "auc_train": round(auc_tr, 3), "auc_replication": round(auc_rep[0], 3)}
+    return part, auc_tr, auc_rep
 
 
 def main():
@@ -29,26 +53,22 @@ def main():
     X, names = features(RR, TG)
     core, repl = s.region.values == "core", s.region.values == "repl"
 
-    out = {"schemaVersion": 1, "features": names, "rain_bins": RAIN_BINS,
+    out = {"schemaVersion": 2, "features": names, "rain_bins": RAIN_BINS,
            "rr_lags": C.RR_LAGS, "tg_lags": C.TG_LAGS,
            "trained_on": "GBIF CC0/CC BY finds AT+SI+HR 2011-2025, ERA5-Land weather",
            "groups": {}}
+    autumn = np.isin(s.event_date.dt.month.values, AUTUMN_MONTHS)
     for g in C.GROUPS:
         gm = s.group.values == g
         tr = gm & core
-        mu, sd = X[tr].mean(0), X[tr].std(0) + 1e-9
-        Xs = (X - mu) / sd
-        m_tr = Matched(s, "within", tr)
-        beta = fit_clogit(Xs, padded_sets(m_tr))
-        score = Xs @ beta
-        ref = np.quantile(score[m_tr.ctl], np.linspace(0, 1, N_QUANTILES))
-        m_rep = Matched(s, "within", gm & repl)
-        auc_tr, auc_rep = m_tr.auc(score), m_rep.auc_ci(score)
-        out["groups"][g] = {"mu": mu.tolist(), "sd": sd.tolist(), "beta": beta.tolist(),
-                            "ref_quantiles": ref.tolist(),
-                            "auc_train": round(auc_tr, 3), "auc_replication": round(auc_rep[0], 3)}
-        print(f"{g:10s} train {auc_tr:.3f} | replication {auc_rep[0]:.3f} "
-              f"[{auc_rep[1]:.3f}-{auc_rep[2]:.3f}] n={auc_rep[3]}")
+        parts = {"all": tr} if g not in SEASONAL else {"summer": tr & ~autumn, "autumn": tr & autumn}
+        fitted = {}
+        for pname, mask in parts.items():
+            fitted[pname], auc_tr, auc_rep = fit_part(s, X, mask, gm & (autumn if pname == "autumn" else
+                                                                       ~autumn if pname == "summer" else True), repl)
+            print(f"{g:10s} {pname:6s} train {auc_tr:.3f} | replication {auc_rep[0]:.3f} "
+                  f"[{auc_rep[1]:.3f}-{auc_rep[2]:.3f}] n={auc_rep[3]}")
+        out["groups"][g] = fitted["all"] if "all" in fitted else {"parts": fitted}
 
     C.OUT.mkdir(exist_ok=True)
     (C.OUT / "model.json").write_text(json.dumps(out))

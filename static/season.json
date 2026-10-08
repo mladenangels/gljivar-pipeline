@@ -1,5 +1,5 @@
 {
- "note": "Season multiplier per month (Jan..Dec) on the percentile, linear between the 15th of each month. 1 = full season, 0.5 caps the score at 50, 0 = off season. 2026-09-13: from Croatian sources + iNaturalist monthly counts (HR coast/interior, inland SI, Mediterranean analogues), cont vrganj June raised to 1 / May 0.7 for spring vrganji. DRAFT - to be reviewed by a mycologist (HMD).",
+ "note": "Season multiplier per month (Jan..Dec) on the percentile, linear between the 15th of each month. 1 = full season, 0.5 caps the score at 50, 0 = off season. 2026-09-13: from Croatian sources + iNaturalist monthly counts (HR coast/interior, inland SI, Mediterranean analogues), cont vrganj June raised to 1 / May 0.7 for spring vrganji. DRAFT - to be reviewed by a mycologist (HMD). 2026-10-08: cont suncanica Oct 1 -> 0.9, Nov 0.6 -> 0.35 (FB: score falls too slowly when they are gone; GBIF core finds in Nov = 1/6 of Sep; best of four variants on 2020-25, AUC 0.671 -> 0.678).",
  "cont": {
   "vrganj": [
    0,
@@ -39,8 +39,8 @@
    0.5,
    0.7,
    1,
-   1,
-   0.6,
+   0.9,
+   0.35,
    0.05
   ],
   "smrcak": [
