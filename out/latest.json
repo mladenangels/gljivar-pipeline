@@ -1,8 +1,8 @@
 {
  "schemaVersion": 1,
- "dataVersion": 2026100814,
+ "dataVersion": 2026100820,
  "date": "2026-10-08",
- "generatedUtc": "2026-10-08T14:57:27Z",
+ "generatedUtc": "2026-10-08T20:18:02Z",
  "file": "forecast-2026-10-08.bin",
  "layout": "uint8 score 0-100 (percentile x season weight), [group][day][cell], cells as in grid.json",
  "groups": [
@@ -22,145 +22,180 @@
   "2026-10-15"
  ],
  "ecmwfRun": "2026-10-08T00Z",
- "iconRun": "2026-10-08T00Z",
+ "iconRun": "2026-10-08T12Z",
  "sources": {
   "2026-09-11": [
    "era5land",
-   "era5land"
+   "era5land",
+   null
   ],
   "2026-09-12": [
    "era5",
-   "filled"
+   "filled",
+   null
   ],
   "2026-09-13": [
    "era5",
-   "filled"
+   "filled",
+   null
   ],
   "2026-09-14": [
    "era5",
-   "ecmwf_an"
+   "ecmwf_an",
+   null
   ],
   "2026-09-15": [
    "era5",
-   "ecmwf_an"
+   "ecmwf_an",
+   null
   ],
   "2026-09-16": [
    "era5",
-   "ecmwf_an"
+   "ecmwf_an",
+   null
   ],
   "2026-09-17": [
    "era5",
-   "ecmwf_an"
+   "ecmwf_an",
+   null
   ],
   "2026-09-18": [
    "era5",
-   "ecmwf_an"
+   "ecmwf_an",
+   null
   ],
   "2026-09-19": [
    "era5",
-   "ecmwf_an"
+   "ecmwf_an",
+   null
   ],
   "2026-09-20": [
    "era5",
-   "ecmwf_an"
+   "ecmwf_an",
+   null
   ],
   "2026-09-21": [
    "era5",
-   "ecmwf_an"
+   "ecmwf_an",
+   null
   ],
   "2026-09-22": [
    "era5",
-   "ecmwf_an"
+   "ecmwf_an",
+   null
   ],
   "2026-09-23": [
    "era5",
-   "ecmwf_an"
+   "ecmwf_an",
+   "era5"
   ],
   "2026-09-24": [
    "era5",
-   "ecmwf_an"
+   "ecmwf_an",
+   "era5"
   ],
   "2026-09-25": [
    "era5",
-   "ecmwf_an"
+   "ecmwf_an",
+   "era5"
   ],
   "2026-09-26": [
    "era5",
-   "ecmwf_an"
+   "ecmwf_an",
+   "era5"
   ],
   "2026-09-27": [
    "era5",
-   "ecmwf_an"
+   "ecmwf_an",
+   "era5"
   ],
   "2026-09-28": [
    "era5",
-   "ecmwf_an"
+   "ecmwf_an",
+   "era5"
   ],
   "2026-09-29": [
    "era5",
-   "ecmwf_an"
+   "ecmwf_an",
+   "era5"
   ],
   "2026-09-30": [
    "era5",
-   "ecmwf_an"
+   "ecmwf_an",
+   "era5"
   ],
   "2026-10-01": [
    "era5",
-   "ecmwf_an"
+   "ecmwf_an",
+   "era5"
   ],
   "2026-10-02": [
    "era5",
-   "ecmwf_an"
+   "ecmwf_an",
+   "era5"
   ],
   "2026-10-03": [
    "imerg_late",
-   "ecmwf_an"
+   "ecmwf_an",
+   "era5"
   ],
   "2026-10-04": [
    "imerg_late",
-   "ecmwf_an"
+   "ecmwf_an",
+   "filled"
   ],
   "2026-10-05": [
    "imerg_late",
-   "ecmwf_an"
+   "ecmwf_an",
+   "filled"
   ],
   "2026-10-06": [
    "imerg_late",
+   "ecmwf_an",
    "ecmwf_an"
   ],
   "2026-10-07": [
    "imerg_late",
+   "ecmwf_an",
    "ecmwf_an"
   ],
   "2026-10-08": [
    "icon_fc",
-   "icon_fc"
+   "icon_fc",
+   "ecmwf_fc"
   ],
   "2026-10-09": [
    "icon_fc",
-   "icon_fc"
+   "icon_fc",
+   "ecmwf_fc"
   ],
   "2026-10-10": [
    "icon_fc",
-   "icon_fc"
+   "icon_fc",
+   "ecmwf_fc"
   ],
   "2026-10-11": [
    "icon_fc",
-   "icon_fc"
+   "icon_fc",
+   "ecmwf_fc"
   ],
   "2026-10-12": [
    "icon_fc",
-   "icon_fc"
+   "icon_fc",
+   "ecmwf_fc"
   ],
   "2026-10-13": [
+   "ecmwf_fc",
    "ecmwf_fc",
    "ecmwf_fc"
   ],
   "2026-10-14": [
    "ecmwf_fc",
+   "ecmwf_fc",
    "ecmwf_fc"
   ],
   "2026-10-15": [
+   "ecmwf_fc",
    "ecmwf_fc",
    "ecmwf_fc"
   ]
