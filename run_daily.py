@@ -4,6 +4,8 @@ Weather per day, best source first:
   rain  ERA5-Land > ERA5 > IMERG Late > IMERG Early (both scaled by month to ERA5-Land) > ECMWF run of that day > archived forecast
   temp  ERA5-Land > ECMWF run of that day > archived forecast > linear fill (at most 2 days)
   D..D+4 the newest complete ICON-EU 00z/12z run (fallback ECMWF), the rest ECMWF.
+  dd    (night dewpoint depression, fog/dew) ERA5 > ECMWF run of that day > ECMWF forecast >
+        linear fill (at most 3 days); still missing = the model treats the dew features as average.
 
 Everything fetched for a day that ERA5-Land does not cover yet is kept in archive/<day>/,
 because ECMWF keeps only 4 days and DWD only the latest run. The archive must persist
@@ -21,6 +23,7 @@ import numpy as np
 import pandas as pd
 
 import config as C
+import dew
 import era5
 import era5land
 import forecast as F
@@ -41,12 +44,13 @@ def _arch(day, source):
     return C.ARCHIVE / C.GRID_TAG / f"{day:%Y-%m-%d}" / f"{source}.npz"
 
 
-def save(day, source, rain=None, temp=None):
+def save(day, source, rain=None, temp=None, dd=None):
     p = _arch(day, source)
     p.parent.mkdir(parents=True, exist_ok=True)
     shape = (len(C.lats()), len(C.lons()))
     nan = np.full(shape, np.nan, "float32")
-    np.savez_compressed(p, rain=nan if rain is None else rain, temp=nan if temp is None else temp)
+    arr = {"rain": rain, "temp": temp, "dd": dd}
+    np.savez_compressed(p, **{k: nan if v is None else v for k, v in arr.items()})
 
 
 def load(day, source):
@@ -56,6 +60,15 @@ def load(day, source):
     z = np.load(p)
     r, t = z["rain"], z["temp"]
     return (None if np.isnan(r).all() else r), (None if np.isnan(t).all() else t)
+
+
+def load_dd(day, source):
+    p = _arch(day, source)
+    if not p.exists():
+        return None
+    z = np.load(p)
+    # archives written before 2026-10-09 have no dd
+    return None if "dd" not in z.files or np.isnan(z["dd"]).all() else z["dd"]
 
 
 # ---------------------------------------------------------------- helpers
@@ -87,10 +100,11 @@ def collect_gap(today, gap_days):
                 # falls back to ECMWF/ICON and latest.json["sources"] records which it used.
                 log(f"IMERG unavailable, falling back to ECMWF/ICON rain: {str(e)[:160]}")
                 imerg_up = False
-        if not _arch(day, "ecmwf_an").exists() and day >= today - pd.Timedelta(days=4):
+        # also re-fetch days archived before the dew fields existed, while ECMWF still has them
+        if load_dd(day, "ecmwf_an") is None and day >= today - pd.Timedelta(days=4):
             try:
-                (rain, temp), = F.ecmwf_days(day, [day]).values()
-                save(day, "ecmwf_an", rain=rain, temp=temp)
+                (rain, temp, dd), = F.ecmwf_days(day, [day]).values()
+                save(day, "ecmwf_an", rain=rain, temp=temp, dd=dd)
             except Exception as e:
                 log(f"ECMWF run {day:%Y-%m-%d} 00z not available: {str(e)[:120]}")
 
@@ -117,17 +131,50 @@ def pick_temp(day):
     return None, None
 
 
+def fill_dd(days, today):
+    """Night dewpoint depression for `days`: ERA5, then the archived ECMWF fields, then short fills."""
+    from model import DD_LAGS
+    shape = (len(days), len(C.lats()), len(C.lons()))
+    dd, src = np.full(shape, np.nan, "float32"), [None] * len(days)
+    need = [d for d in days if d >= today - pd.Timedelta(days=DD_LAGS + 1)]
+    try:
+        e5 = dew.era5([d for d in need if d < today], today)
+    except Exception as e:
+        e5 = {}
+        log(f"ERA5 dew failed, ECMWF only: {str(e)[:160]}")
+    for d in need:
+        i = days.get_loc(d)
+        if d in e5:
+            dd[i], src[i] = e5[d], "era5"
+            continue
+        for s in (("ecmwf_an", "ecmwf_fc") if d < today else ("ecmwf_fc",)):
+            x = load_dd(d, s)
+            if x is not None:
+                dd[i], src[i] = x, s
+                break
+    for i in range(len(days)):
+        if src[i] is None and days[i] in need:
+            a = max((k for k in range(i) if src[k] not in (None, "filled")), default=None)
+            b = min((k for k in range(i + 1, len(days)) if src[k] not in (None, "filled")), default=None)
+            if a is not None and b is not None and b - a <= 4:
+                w = (i - a) / (b - a)
+                dd[i], src[i] = (1 - w) * dd[a] + w * dd[b], "filled"
+    log("dew sources: " + ", ".join(f"{d:%m-%d} {s}" for d, s in zip(days, src) if d in need))
+    return dd, src
+
+
 # ---------------------------------------------------------------- model
 
-def score_cube(model, season, rain, temp, days, t_index, src, med):
+def score_cube(model, season, rain, temp, dd, days, t_index, src, med):
     """Score 0-100 per group, target day, cell. `src` = (iy, ix) of each cell's weather cell."""
-    from model import score
+    from model import DD_LAGS, score
     iy, ix = src
     out = np.zeros((len(C.GROUPS), len(t_index), len(iy)), "uint8")
     for j, t in enumerate(t_index):
         R = rain[t - np.arange(C.RR_LAGS)][:, iy, ix].T.astype("float64")
         T = temp[t - np.arange(C.TG_LAGS)][:, iy, ix].T.astype("float64")
-        s = score(model, season, R, T, days[t], med)
+        DD = dd[t - np.arange(DD_LAGS)][:, iy, ix].T.astype("float64")
+        s = score(model, season, R, T, days[t], med, DD)
         for g, name in enumerate(C.GROUPS):
             out[g, j] = s[name]
     return out
@@ -193,8 +240,8 @@ def main(today):
     # cannot give today's 00-24 total. Today's 00z run still reaches the last day.
     run = min(run, today)
     fc_days = pd.date_range(today, last)
-    for d, (r, t) in F.ecmwf_days(run, fc_days).items():
-        save(d, "ecmwf_fc", rain=r, temp=t)
+    for d, (r, t, x) in F.ecmwf_days(run, fc_days).items():
+        save(d, "ecmwf_fc", rain=r, temp=t, dd=x)
     log(f"ECMWF run {run:%Y-%m-%d %H}z")
 
     factors = imerg_factors()
@@ -226,6 +273,7 @@ def main(today):
                 raise SystemExit(f"no temperature for {days[i]:%Y-%m-%d}")
             w = (i - a) / (b - a)
             temp[i], src_temp[i] = (1 - w) * temp[a] + w * temp[b], "filled"
+    dd, src_dd = fill_dd(days, today)
     missing = [f"{d:%Y-%m-%d}" for d, s in zip(days, src_rain) if s is None]
     if missing:
         raise SystemExit(f"no rain for {missing}")
@@ -239,7 +287,7 @@ def main(today):
     season = json.loads((C.ROOT / "static" / "season.json").read_text())
     med = grid["med"][iy, ix]
     t_index = [days.get_loc(today + pd.Timedelta(days=k)) for k in range(C.FORECAST_DAYS)]
-    cube = score_cube(model, season, rain, temp, days, t_index, (siy, six), med)
+    cube = score_cube(model, season, rain, temp, dd, days, t_index, (siy, six), med)
 
     C.OUT.mkdir(exist_ok=True)
     name = f"forecast-{today:%Y-%m-%d}.bin"
@@ -267,7 +315,7 @@ def main(today):
         "days": [f"{today + pd.Timedelta(days=k):%Y-%m-%d}" for k in range(C.FORECAST_DAYS)],
         "ecmwfRun": f"{run:%Y-%m-%dT%HZ}",
         "iconRun": None if icon_run is None else f"{icon_run:%Y-%m-%dT%HZ}",
-        "sources": {f"{d:%Y-%m-%d}": [src_rain[i], src_temp[i]] for i, d in enumerate(days)
+        "sources": {f"{d:%Y-%m-%d}": [src_rain[i], src_temp[i], src_dd[i]] for i, d in enumerate(days)
                     if d > last_obs - pd.Timedelta(days=1)},
         "imergScaled": factors is not None,
         "era5landLagDays": len(gap),

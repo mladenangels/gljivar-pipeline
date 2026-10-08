@@ -8,6 +8,7 @@ run started at 00z of a past day, as that day's temperature (the "analysis" the 
 Every field matches ERA5-Land's definitions:
   rain  = total 00-24 UTC (mm)
   temp  = mean of 00/06/12/18 UTC (deg C), shifted to ERA5-Land elevation at 6.5 K/km
+  dd    = night dewpoint depression, t2m - d2m at 00 and 06 UTC (deg C), ECMWF only (see dew.py)
 """
 import bz2
 
@@ -130,7 +131,7 @@ def ecmwf_latest_run():
 
 
 def ecmwf_days(run, days):
-    """{day: (rain, temp)} for the given days from one ECMWF run (00z or 12z)."""
+    """{day: (rain, temp, dd)} for the given days from one ECMWF run (00z or 12z)."""
     run = pd.Timestamp(run)
     elev = G.load()["elev"]
     tag = f"{run:%Y%m%d%H}"
@@ -149,10 +150,14 @@ def ecmwf_days(run, days):
 
     span = f"{min(t_steps)}-{max(tp_steps)}"
     tpf, tf = C.CACHE / f"ecmwf_{tag}_{span}_tp.grib2", C.CACHE / f"ecmwf_{tag}_{span}_2t.grib2"
+    df = C.CACHE / f"ecmwf_{tag}_{span}_2d.grib2"
+    d_steps = sorted({hours(x + pd.Timedelta(hours=h)) for x in days for h in (0, 6)})
     if not tpf.exists():
         _ecmwf(run, tp_steps, "tp", tpf)
     if not tf.exists():
         _ecmwf(run, t_steps, "2t", tf)
+    if not df.exists():
+        _ecmwf(run, d_steps, "2d", df)
 
     with _open(tpf) as d:
         tp = d["tp"]
@@ -162,6 +167,10 @@ def ecmwf_days(run, days):
         t2 = d["t2m"]
         t2 = t2 if "step" in t2.dims else t2.expand_dims("step")
         t_by_h = {int(s / np.timedelta64(1, "h")): _regrid(t2.sel(step=s)) for s in t2.step.values}
+    with _open(df) as d:
+        d2 = d["d2m"]
+        d2 = d2 if "step" in d2.dims else d2.expand_dims("step")
+        d_by_h = {int(s / np.timedelta64(1, "h")): _regrid(d2.sel(step=s)) for s in d2.step.values}
 
     out = {}
     for x in days:
@@ -169,5 +178,7 @@ def ecmwf_days(run, days):
         rain = np.maximum(tp_by_h[b] - (tp_by_h[a] if a > 0 else 0.0), 0.0)
         temp = np.mean([t_by_h[hours(x + pd.Timedelta(hours=h))] for h in (0, 6, 12, 18)], 0)
         temp = temp - 273.15 + LAPSE * (elev - z_model)
-        out[x] = (rain.astype("float32"), temp.astype("float32"))
+        dd = np.mean([t_by_h[hours(x + pd.Timedelta(hours=h))] - d_by_h[hours(x + pd.Timedelta(hours=h))]
+                      for h in (0, 6)], 0)
+        out[x] = (rain.astype("float32"), temp.astype("float32"), dd.astype("float32"))
     return out
