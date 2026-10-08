@@ -1,8 +1,8 @@
 {
  "schemaVersion": 1,
- "dataVersion": 2026100808,
+ "dataVersion": 2026100814,
  "date": "2026-10-08",
- "generatedUtc": "2026-10-08T08:23:26Z",
+ "generatedUtc": "2026-10-08T14:48:13Z",
  "file": "forecast-2026-10-08.bin",
  "layout": "uint8 score 0-100 (percentile x season weight), [group][day][cell], cells as in grid.json",
  "groups": [
@@ -29,87 +29,87 @@
    "era5land"
   ],
   "2026-09-12": [
-   "imerg_late",
+   "era5",
    "filled"
   ],
   "2026-09-13": [
-   "imerg_late",
+   "era5",
    "filled"
   ],
   "2026-09-14": [
-   "imerg_late",
+   "era5",
    "ecmwf_an"
   ],
   "2026-09-15": [
-   "imerg_late",
+   "era5",
    "ecmwf_an"
   ],
   "2026-09-16": [
-   "imerg_late",
+   "era5",
    "ecmwf_an"
   ],
   "2026-09-17": [
-   "imerg_late",
+   "era5",
    "ecmwf_an"
   ],
   "2026-09-18": [
-   "imerg_late",
+   "era5",
    "ecmwf_an"
   ],
   "2026-09-19": [
-   "imerg_late",
+   "era5",
    "ecmwf_an"
   ],
   "2026-09-20": [
-   "imerg_late",
+   "era5",
    "ecmwf_an"
   ],
   "2026-09-21": [
-   "imerg_late",
+   "era5",
    "ecmwf_an"
   ],
   "2026-09-22": [
-   "imerg_late",
+   "era5",
    "ecmwf_an"
   ],
   "2026-09-23": [
-   "imerg_late",
+   "era5",
    "ecmwf_an"
   ],
   "2026-09-24": [
-   "imerg_late",
+   "era5",
    "ecmwf_an"
   ],
   "2026-09-25": [
-   "imerg_late",
+   "era5",
    "ecmwf_an"
   ],
   "2026-09-26": [
-   "imerg_late",
+   "era5",
    "ecmwf_an"
   ],
   "2026-09-27": [
-   "imerg_late",
+   "era5",
    "ecmwf_an"
   ],
   "2026-09-28": [
-   "imerg_late",
+   "era5",
    "ecmwf_an"
   ],
   "2026-09-29": [
-   "imerg_late",
+   "era5",
    "ecmwf_an"
   ],
   "2026-09-30": [
-   "imerg_late",
+   "era5",
    "ecmwf_an"
   ],
   "2026-10-01": [
-   "imerg_late",
+   "era5",
    "ecmwf_an"
   ],
   "2026-10-02": [
-   "imerg_late",
+   "era5",
    "ecmwf_an"
   ],
   "2026-10-03": [
@@ -129,7 +129,7 @@
    "ecmwf_an"
   ],
   "2026-10-07": [
-   "imerg_early",
+   "imerg_late",
    "ecmwf_an"
   ],
   "2026-10-08": [
@@ -166,5 +166,6 @@
   ]
  },
  "imergScaled": true,
+ "era5landLagDays": 26,
  "attribution": "Contains modified Copernicus Climate Change Service information (ERA5-Land); NASA GPM IMERG; DWD ICON-EU (CC BY 4.0); ECMWF open data (CC BY 4.0)."
 }
