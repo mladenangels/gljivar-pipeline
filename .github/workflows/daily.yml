@@ -94,11 +94,36 @@ jobs:
           FTP_PASS: ${{ secrets.FTP_PASS }}
         run: ./publish.sh
 
+      # v2 (nine countries + rain layer, data/v2/ for the 0.5.0 apps) runs after v1 is
+      # published and may fail on its own: the 0.4.x apps must never lose their data to it.
+      # It reuses the ICON-EU / ECMWF files the v1 run left in cache/.
+      - name: Compute v2
+        id: v2
+        continue-on-error: true
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python run_daily.py --v2 ${{ inputs.date }}
+
+      - name: Publish v2
+        id: v2pub
+        if: steps.v2.outcome == 'success'
+        continue-on-error: true
+        env:
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
+        run: |
+          python preview.py --v2 --map vrganj
+          python preview.py --v2 --rain 7
+          ./publish.sh v2
+
       - name: Keep archive
         run: |
           git config user.name "gljivar-bot"
           git config user.email "gljivar-bot@users.noreply.github.com"
+          # (git add <dir> also stages deletions: v2 prunes its archive to 75 days)
           git add archive out/latest.json out/grid.json
+          if [ -f out/v2/latest.json ]; then git add out/v2/latest.json out/v2/grid.json; fi
           git diff --cached --quiet || git commit -q -m "data $(python3 -c "import json;print(json.load(open('out/latest.json'))['date'])")"
           # The data is already published at this point, so a moved main must not fail the job.
           git push -q || { git pull --rebase -q && git push -q; }
@@ -108,9 +133,19 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: preview
-          path: out/preview-*.png
+          path: |
+            out/preview-*.png
+            out/v2/preview-*.png
           if-no-files-found: ignore
           retention-days: 14
+
+      - name: Telegram on v2 failure
+        if: steps.v2.outcome == 'failure' || steps.v2pub.outcome == 'failure'
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python notify.py "Gljivar: v2 (9 zemalja, data/v2) NIJE objavljen ($(date -u +%F)); v1 je objavljen. ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       - name: Telegram on failure
         if: failure()

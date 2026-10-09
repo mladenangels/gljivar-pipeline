@@ -4,3 +4,11 @@ out/forecast-*.bin
 out/preview-*.png
 *.part
 out/replay-*.png
+out/v2/forecast-*.bin
+out/v2/rain-*.bin
+out/v2/preview-*.png
+# v2 commits only the per-day ECMWF analyses: the forecast fields are rewritten every run
+# (3 runs x 8 days x ~120 kB of history a day), and a missing analysis is re-fetched from
+# the ECMWF open-data mirror on AWS (forecast._ecmwf).
+archive/eu9v1/*/icon_fc.npz
+archive/eu9v1/*/ecmwf_fc.npz

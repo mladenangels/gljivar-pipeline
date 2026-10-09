@@ -1,0 +1,111 @@
+{
+ "schemaVersion": 2,
+ "dataVersion": 2026100916,
+ "date": "2026-10-09",
+ "generatedUtc": "2026-10-09T16:23:48Z",
+ "file": "forecast-2026-10-09.bin",
+ "layout": "uint8 score 0-100 (percentile x season weight), [group][day][cell], cells as in grid.json",
+ "groups": [
+  "vrganj",
+  "lisicarka",
+  "suncanica",
+  "smrcak"
+ ],
+ "days": [
+  "2026-10-09",
+  "2026-10-10",
+  "2026-10-11",
+  "2026-10-12",
+  "2026-10-13",
+  "2026-10-14",
+  "2026-10-15",
+  "2026-10-16"
+ ],
+ "ecmwfRun": "2026-10-09T00Z",
+ "iconRun": "2026-10-09T12Z",
+ "sources": {
+  "2026-10-03": [
+   "era5land",
+   "era5land",
+   "era5"
+  ],
+  "2026-10-04": [
+   "ecmwf_an",
+   "ecmwf_an",
+   "era5"
+  ],
+  "2026-10-05": [
+   "ecmwf_an",
+   "ecmwf_an",
+   "ecmwf_an"
+  ],
+  "2026-10-06": [
+   "ecmwf_an",
+   "ecmwf_an",
+   "ecmwf_an"
+  ],
+  "2026-10-07": [
+   "ecmwf_an",
+   "ecmwf_an",
+   "ecmwf_an"
+  ],
+  "2026-10-08": [
+   "ecmwf_an",
+   "ecmwf_an",
+   "ecmwf_an"
+  ],
+  "2026-10-09": [
+   "ecmwf_fc",
+   "ecmwf_fc",
+   "ecmwf_fc"
+  ],
+  "2026-10-10": [
+   "icon_fc",
+   "icon_fc",
+   "ecmwf_fc"
+  ],
+  "2026-10-11": [
+   "icon_fc",
+   "icon_fc",
+   "ecmwf_fc"
+  ],
+  "2026-10-12": [
+   "icon_fc",
+   "icon_fc",
+   "ecmwf_fc"
+  ],
+  "2026-10-13": [
+   "icon_fc",
+   "icon_fc",
+   "ecmwf_fc"
+  ],
+  "2026-10-14": [
+   "ecmwf_fc",
+   "ecmwf_fc",
+   "ecmwf_fc"
+  ],
+  "2026-10-15": [
+   "ecmwf_fc",
+   "ecmwf_fc",
+   "ecmwf_fc"
+  ],
+  "2026-10-16": [
+   "ecmwf_fc",
+   "ecmwf_fc",
+   "ecmwf_fc"
+  ]
+ },
+ "imergScaled": false,
+ "era5landLagDays": 5,
+ "attribution": "Contains modified Copernicus Climate Change Service information (ERA5-Land, ERA5); DWD ICON-EU (CC BY 4.0); ECMWF open data (CC BY 4.0).",
+ "rain": {
+  "file": "rain-2026-10-09.bin",
+  "periods": [
+   7,
+   14
+  ],
+  "endDay": "2026-10-08",
+  "estimatedFrom": "2026-10-04",
+  "layout": "uint16 LE, tenths of mm, [period][cell]"
+ }
+}

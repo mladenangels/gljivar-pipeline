@@ -11,9 +11,14 @@ Everything fetched for a day that ERA5-Land does not cover yet is kept in archiv
 because ECMWF keeps only 4 days and DWD only the latest run. The archive must persist
 between runs (commit it, or keep it on the server).
 
-Usage: run_daily.py [YYYY-MM-DD]   (default: today in Croatia, see TZ below)
+The v2 grid (nine countries, docs/PLAN-0.5.0.md) is the same job on a bigger box with its
+own archive and output (out/v2/), plus the rain layer (7/14-day sums). It skips IMERG.
+
+Usage: run_daily.py [--v2] [YYYY-MM-DD]   (default: today in Croatia, see TZ below)
 """
 import json
+import os
+import shutil
 import sys
 import traceback
 from datetime import datetime, timezone
@@ -22,15 +27,17 @@ from zoneinfo import ZoneInfo
 import numpy as np
 import pandas as pd
 
-import config as C
-import dew
-import era5
-import era5land
-import forecast as F
-import grid as G
-import imerg
+if __name__ == "__main__" and "--v2" in sys.argv:
+    os.environ["GLJIVAR_GRID"] = "eu9v1"
+import config as C  # noqa: E402
+import dew  # noqa: E402
+import era5  # noqa: E402
+import era5land  # noqa: E402
+import forecast as F  # noqa: E402
+import grid as G  # noqa: E402
+import imerg  # noqa: E402
 
-SCHEMA = 1
+SCHEMA = C.SCHEMA
 
 # "Today" is the day the app's users are in, not the UTC day: a job that runs at 23z has
 # to forecast the date Croatia has already turned to, or a picker leaving at 4 am gets a
@@ -44,12 +51,29 @@ def _arch(day, source):
     return C.ARCHIVE / C.GRID_TAG / f"{day:%Y-%m-%d}" / f"{source}.npz"
 
 
+_used = None
+
+
+def used_cells():
+    """Weather cells the v2 grid reads (60 % of its box is sea or other countries)."""
+    global _used
+    if _used is None:
+        g = G.load()
+        hr = g["hr"]
+        _used = np.zeros(hr.shape, bool)
+        _used[g["src_iy"][hr], g["src_ix"][hr]] = True
+    return _used
+
+
 def save(day, source, rain=None, temp=None, dd=None):
     p = _arch(day, source)
     p.parent.mkdir(parents=True, exist_ok=True)
     shape = (len(C.lats()), len(C.lons()))
     nan = np.full(shape, np.nan, "float32")
     arr = {"rain": rain, "temp": temp, "dd": dd}
+    if C.V2:
+        # the archive is committed every run: unused cells as NaN compress to nothing
+        arr = {k: None if v is None else np.where(used_cells(), v, np.nan).astype("float32") for k, v in arr.items()}
     np.savez_compressed(p, **{k: nan if v is None else v for k, v in arr.items()})
 
 
@@ -75,7 +99,7 @@ def load_dd(day, source):
 
 def imerg_factors():
     p = C.ROOT / "static" / "imerg_factors.json"
-    return json.loads(p.read_text()) if p.exists() else None
+    return json.loads(p.read_text()) if p.exists() and C.USE_IMERG else None
 
 
 def log(*a):
@@ -84,7 +108,7 @@ def log(*a):
 
 def collect_gap(today, gap_days):
     """Fetch and archive IMERG + ECMWF for days ERA5-Land does not cover yet."""
-    imerg_up = True
+    imerg_up = C.USE_IMERG
     for day in gap_days:
         if imerg_up and not _arch(day, "imerg_late").exists():
             try:
@@ -101,7 +125,7 @@ def collect_gap(today, gap_days):
                 log(f"IMERG unavailable, falling back to ECMWF/ICON rain: {str(e)[:160]}")
                 imerg_up = False
         # also re-fetch days archived before the dew fields existed, while ECMWF still has them
-        if load_dd(day, "ecmwf_an") is None and day >= today - pd.Timedelta(days=4):
+        if load_dd(day, "ecmwf_an") is None and day >= today - pd.Timedelta(days=C.ECMWF_BACKFILL_DAYS):
             try:
                 (rain, temp, dd), = F.ecmwf_days(day, [day]).values()
                 save(day, "ecmwf_an", rain=rain, temp=temp, dd=dd)
@@ -185,7 +209,7 @@ def score_cube(model, season, rain, temp, dd, days, t_index, src, med):
 def main(today):
     today = pd.Timestamp(today).normalize()
     grid = G.load()
-    model = json.loads((C.OUT / "model.json").read_text())
+    model = json.loads((C.ROOT / "out" / "model.json").read_text())
     first = today - pd.Timedelta(days=C.RR_LAGS - 1)
     last = today + pd.Timedelta(days=C.FORECAST_DAYS - 1)
     days = pd.date_range(first, last)
@@ -201,7 +225,7 @@ def main(today):
     last_obs = e_days[-1] if len(e_days) else first - pd.Timedelta(days=1)
     gap = pd.date_range(last_obs + pd.Timedelta(days=1), today - pd.Timedelta(days=1))
     log(f"ERA5-Land to {last_obs:%Y-%m-%d}; gap {len(gap)} days")
-    if len(gap) in (11, 25):
+    if len(gap) in (11, 25) and not C.V2:  # the v1 run already sent it
         # ERA5-Land normally lags ~6 days. From 2026-09-12 CDS stopped extending it for weeks
         # and nobody noticed; ERA5 below covers the rain, but someone should look.
         try:
@@ -289,7 +313,7 @@ def main(today):
     t_index = [days.get_loc(today + pd.Timedelta(days=k)) for k in range(C.FORECAST_DAYS)]
     cube = score_cube(model, season, rain, temp, dd, days, t_index, (siy, six), med)
 
-    C.OUT.mkdir(exist_ok=True)
+    C.OUT.mkdir(parents=True, exist_ok=True)
     name = f"forecast-{today:%Y-%m-%d}.bin"
     (C.OUT / name).write_bytes(cube.tobytes())
     (C.OUT / "grid.json").write_text(json.dumps({
@@ -322,15 +346,60 @@ def main(today):
         "attribution": "Contains modified Copernicus Climate Change Service information (ERA5-Land); "
                        "NASA GPM IMERG; DWD ICON-EU (CC BY 4.0); ECMWF open data (CC BY 4.0).",
     }
+    if C.V2:
+        meta["attribution"] = ("Contains modified Copernicus Climate Change Service information "
+                               "(ERA5-Land, ERA5); DWD ICON-EU (CC BY 4.0); ECMWF open data (CC BY 4.0).")
+        meta["rain"] = write_rain(rain, days, today, src_rain, (siy, six))
     (C.OUT / "latest.json").write_text(json.dumps(meta, indent=1))
     log(f"wrote {name}: {cube.nbytes} bytes; grid mean per group/day:")
     for g, n in enumerate(C.GROUPS):
         log(f"  {n:10s}", " ".join(f"{cube[g, j].mean():5.1f}" for j in range(C.FORECAST_DAYS)))
+    if C.V2:
+        cc = grid["country"][iy, ix]
+        for k, code in enumerate(grid["countries"]):
+            sel = cc == k
+            log(f"  {C.COUNTRY_CODES[str(code)]}: {sel.sum():5d} cells, today " +
+                " ".join(f"{n[:4]} {cube[g, 0, sel].mean():4.1f}" for g, n in enumerate(C.GROUPS)))
+        prune_archive(today)
     return meta
 
 
+# ---------------------------------------------------------------- v2 extras
+
+def write_rain(rain, days, today, src_rain, src):
+    """Rain layer: sums of the stitched daily rain over the last 7 / 14 complete days, per cell.
+
+    Same rain the model sees (ERA5-Land > ERA5 > ECMWF 00z run of the day), so the map and
+    the score never disagree. uint16 LE, tenths of mm, [period][cell].
+    """
+    iy, ix = src
+    end = today - pd.Timedelta(days=1)
+    e = days.get_loc(end)
+    out = np.zeros((len(C.RAIN_PERIODS), len(iy)), "uint16")
+    for k, n in enumerate(C.RAIN_PERIODS):
+        tot = rain[e - n + 1:e + 1][:, iy, ix].sum(0)
+        out[k] = np.clip(np.round(tot * 10), 0, 65535).astype("uint16")
+    name = f"rain-{today:%Y-%m-%d}.bin"
+    (C.OUT / name).write_bytes(out.astype("<u2").tobytes())
+    # first day not from ERA5-Land; may lie before the 14-day window (then every day is an estimate)
+    est = next((d for d, s in zip(days, src_rain) if s != "era5land"), today)
+    log(f"rain layer {name}: mean 7 d {out[0].mean() / 10:.1f} mm, 14 d {out[1].mean() / 10:.1f} mm, "
+        f"estimated from {est:%Y-%m-%d}")
+    return {"file": name, "periods": C.RAIN_PERIODS, "endDay": f"{end:%Y-%m-%d}",
+            "estimatedFrom": f"{est:%Y-%m-%d}", "layout": "uint16 LE, tenths of mm, [period][cell]"}
+
+
+def prune_archive(today, keep_days=75):
+    """The v2 archive is ~10x the v1 one per day; days older than the rain lags are never read."""
+    root = C.ARCHIVE / C.GRID_TAG
+    for d in sorted(root.glob("????-??-??")):
+        if pd.Timestamp(d.name) < today - pd.Timedelta(days=keep_days):
+            shutil.rmtree(d)
+
+
 if __name__ == "__main__":
-    arg = sys.argv[1] if len(sys.argv) > 1 else datetime.now(TZ).strftime("%Y-%m-%d")
+    args = [a for a in sys.argv[1:] if a != "--v2"]
+    arg = args[0] if args else datetime.now(TZ).strftime("%Y-%m-%d")
     try:
         main(arg)
     except BaseException:

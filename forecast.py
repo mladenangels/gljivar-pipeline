@@ -114,12 +114,18 @@ def icon_eu(run):
 # ---------------------------------------------------------------- ECMWF IFS
 
 def _ecmwf(run, steps, param, target):
+    """data.ecmwf.int keeps only ~4 days of runs; the AWS mirror keeps them for years, so it
+    is the fallback for older runs (a new grid's archive starts empty) and for outages."""
     from ecmwf.opendata import Client
-    c = Client(source="ecmwf", model="ifs", resol="0p25")
     kw = dict(type="fc", step=steps, param=[param], target=str(target))
     if run is not None:
         kw.update(date=run.strftime("%Y%m%d"), time=run.hour)
-    return c.retrieve(**kw)
+    try:
+        return Client(source="ecmwf", model="ifs", resol="0p25").retrieve(**kw)
+    except Exception:
+        if run is None:
+            raise
+        return Client(source="aws", model="ifs", resol="0p25").retrieve(**kw)
 
 
 def ecmwf_latest_run():

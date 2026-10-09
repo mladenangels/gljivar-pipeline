@@ -1,4 +1,4 @@
-"""Static grid: Croatian and Slovenian cells, where their weather comes from, forest and zone.
+"""Static grid: the cells of config.COUNTRIES, where their weather comes from, forest and zone.
 
 A cell belongs to the grid if any part of it is land of one of config.COUNTRIES (Natural
 Earth 10m), so coast and islands are in. ERA5-Land has no data for cells that are mostly
@@ -8,7 +8,9 @@ Forest: share of ESA WorldCover 2021 "tree cover" (class 10) in the cell, CC BY 
 Zone: "med" where the source cell's mean January temperature (ERA5-Land 2011-2025) is
 >= 4 deg C - the warm coast and Istria, where the Austrian-trained model is least reliable.
 
-Writes static/grid.npz. Build-time only (needs ../backtest data and rasterio/shapely/pyshp).
+Writes static/<config.GRID_FILE>. Build-time only (needs ../backtest data and rasterio/shapely/pyshp).
+The eu9v1 grid also needs cache/era5land_jan_t2m.nc (ERA5-Land monthly means, January 2m
+temperature 2011-2025 over the box, see jan_mean) because the backtest data stops at 50 N / 20 E.
 """
 import numpy as np
 import pandas as pd
@@ -20,6 +22,7 @@ STATIC = C.ROOT / "static"
 SUB = 10          # sub-samples per cell side for the land share
 MED_JAN_C = 4.0
 MAX_BORROW = 3    # cells
+Z_FILE = "era5land_z.nc" if C.GRID_TAG == "hrsi1" else f"era5land_z_{C.GRID_TAG}.nc"
 WORLDCOVER = ("https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map/"
               "ESA_WorldCover_10m_2021_v200_{tile}_Map.tif")
 
@@ -38,10 +41,15 @@ def land_share(lats, lons):
         geom = shape(r.shape(i).__geo_interface__)
         shapely.prepare(geom)
         share = np.zeros((len(lats), len(lons)), "float32")
-        for y, la in enumerate(lats):
-            for x, lo in enumerate(lons):
-                px, py = np.meshgrid(lo + off * C.STEP, la + off * C.STEP)
-                share[y, x] = shapely.contains_xy(geom, px.ravel(), py.ravel()).mean()
+        x0, y0, x1, y1 = geom.bounds
+        ys = np.where((lats + C.STEP / 2 >= y0) & (lats - C.STEP / 2 <= y1))[0]
+        xs = np.where((lons + C.STEP / 2 >= x0) & (lons - C.STEP / 2 <= x1))[0]
+        # all sub-samples of the country's bounding box in one call: [y, x, sub_y, sub_x]
+        py = lats[ys][:, None, None, None] + off[None, None, :, None] * C.STEP
+        px = lons[xs][None, :, None, None] + off[None, None, None, :] * C.STEP
+        py, px = np.broadcast_arrays(py, px)
+        inside = shapely.contains_xy(geom, px.ravel(), py.ravel()).reshape(py.shape)
+        share[np.ix_(ys, xs)] = inside.mean((2, 3))
         out[code] = share
         print(f"land share {code}: {(share > 0).sum()} cells", flush=True)
     return out
@@ -58,8 +66,12 @@ def tree_share(lats, lons):
              for lo in range(int(np.floor((C.LON0 - half) / 3) * 3), int(np.ceil(C.LON1 + half)), 3)}
     for la0, lo0 in sorted(tiles):
         name = f"N{la0:02d}E{lo0:03d}"
-        with rasterio.open(WORLDCOVER.format(tile=name)) as s:
-            a = s.read(1, out_shape=(3 * px_per_deg, 3 * px_per_deg), resampling=Resampling.nearest)
+        try:
+            with rasterio.open(WORLDCOVER.format(tile=name)) as s:
+                a = s.read(1, out_shape=(3 * px_per_deg, 3 * px_per_deg), resampling=Resampling.nearest)
+        except rasterio.errors.RasterioIOError:
+            print("WorldCover", name, "missing (sea only)", flush=True)
+            continue
         print("WorldCover", name, flush=True)
         for y, la in enumerate(lats):
             r0 = int(round((la0 + 3 - (la + C.STEP / 2)) * px_per_deg))
@@ -90,17 +102,46 @@ def cached_tree_share(lats, lons):
     return tree
 
 
+def jan_mean(lats, lons):
+    """(land mask, mean January temperature) from ERA5-Land 2011-2025.
+
+    The backtest's daily ERA5-Land (mean of 00/06/12/18 UTC) covers 42-50 N, 5.5-20 E. The
+    eu9v1 box is bigger, so outside it the January mean comes from the CDS monthly means
+    (24-hour mean), shifted by their mean difference to the daily data where both exist,
+    and the land mask is the monthly means' (the same ERA5-Land land-sea mask).
+    """
+    tg = xr.open_dataset(C.BACKTEST / "data" / "era5land_tg.nc")["tg"]
+    inside = (lats >= float(tg.latitude.min()))[:, None] & (lats <= float(tg.latitude.max()))[:, None] & \
+             (lons >= float(tg.longitude.min()))[None, :] & (lons <= float(tg.longitude.max()))[None, :]
+    # load only what is used before the (fancy-indexed) nearest selection; on the 15-year file
+    # on disk that selection takes many minutes
+    t = pd.DatetimeIndex(tg.time.values)
+    first = tg.isel(time=slice(0, 10)).load().sel(latitude=lats, longitude=lons, method="nearest")
+    land = np.isfinite(first.values).all(0)
+    janv = tg.isel(time=np.where(t.month == 1)[0]).load().sel(latitude=lats, longitude=lons, method="nearest")
+    jan = janv.values.mean(0)
+    if inside.all():
+        return land, jan
+    m = xr.open_dataset(C.CACHE / "era5land_jan_t2m.nc")["t2m"]
+    m = m.rename({"valid_time": "time"}) if "valid_time" in m.dims else m
+    m = m.sortby("latitude").sel(latitude=lats, longitude=lons, method="nearest")
+    land_m = np.isfinite(m.values).all(0)
+    jan_m = m.values.mean(0) - 273.15
+    both = inside & land & land_m
+    bias = float(np.mean(jan[both] - jan_m[both]))
+    print(f"January mean: daily - monthly means = {bias:+.2f} C over {both.sum()} cells, "
+          f"MED flag agreement {np.mean((jan[both] >= MED_JAN_C) == (jan_m[both] + bias >= MED_JAN_C)):.3f}")
+    land = np.where(inside, land, land_m)
+    jan = np.where(inside, jan, jan_m + bias)
+    return land, jan
+
+
 def build():
     lats, lons = C.lats(), C.lons()
-    z = xr.open_dataset(STATIC / "era5land_z.nc")["z"].isel(time=0)
+    z = xr.open_dataset(STATIC / Z_FILE)["z"].isel(time=0)
     z = z.sortby("latitude").sel(latitude=lats, longitude=lons, method="nearest")
     elev = (z.values / 9.80665).astype("float32")
-
-    tg = xr.open_dataset(C.BACKTEST / "data" / "era5land_tg.nc")["tg"]
-    tg = tg.sel(latitude=lats, longitude=lons, method="nearest")
-    land = np.isfinite(tg.isel(time=slice(0, 10)).values).all(0)
-    t = pd.DatetimeIndex(tg.time.values)
-    jan = tg.values[t.month == 1].mean(0)
+    land, jan = jan_mean(lats, lons)
 
     shares = land_share(lats, lons)
     hr = np.zeros((len(lats), len(lons)), bool)
@@ -129,7 +170,7 @@ def build():
     tree = cached_tree_share(lats, lons)
 
     country = np.where(hr, country, np.int8(-1)).astype("int8")
-    np.savez_compressed(STATIC / "grid.npz", lats=lats, lons=lons, elev=elev, land=land, hr=hr,
+    np.savez_compressed(STATIC / C.GRID_FILE, lats=lats, lons=lons, elev=elev, land=land, hr=hr,
                         src_iy=src_iy, src_ix=src_ix, med=med, tree=tree, country=country,
                         countries=np.array(C.COUNTRIES),
                         **{f"share_{c}": shares[c] for c in C.COUNTRIES})
@@ -138,10 +179,34 @@ def build():
           f"med {med.sum()}, tree share mean {tree[hr].mean():.2f}, <10% forest {(tree[hr] < 0.1).sum()}")
     for i, c in enumerate(C.COUNTRIES):
         print(f"  {c}: {(hr & (country == i)).sum()} cells")
+    if C.GRID_TAG != "hrsi1":
+        write_borders()
+
+
+NEIGHBOURS = ["FRA", "BEL", "NLD", "LUX", "DNK", "POL", "CZE", "SVK", "UKR", "ROU", "BGR", "MKD", "MNE",
+              "ALB", "GRC", "KOS", "LIE", "SMR", "VAT", "MCO", "TUN", "MLT"]
+
+
+def write_borders():
+    """Simplified country outlines for preview.py (the 9 countries + neighbours, ~0.01 deg)."""
+    import json
+
+    import shapefile
+    from shapely.geometry import mapping, shape
+    r = shapefile.Reader(str(C.CACHE / "ne10" / "ne_10m_admin_0_countries.shp"))
+    feats = []
+    for k, rec in enumerate(r.records()):
+        if rec["ADM0_A3"] in C.COUNTRIES or rec["ADM0_A3"] in NEIGHBOURS:
+            g = shape(r.shape(k).__geo_interface__).simplify(0.01)
+            geo = json.loads(json.dumps(mapping(g)))
+            feats.append({"type": "Feature", "properties": {"ADM0_A3": rec["ADM0_A3"]}, "geometry": geo})
+    target = STATIC / f"borders_{C.GRID_TAG}.geojson"
+    target.write_text(json.dumps({"type": "FeatureCollection", "features": feats}, separators=(",", ":")))
+    print(target, target.stat().st_size, "bytes")
 
 
 def load():
-    return dict(np.load(STATIC / "grid.npz"))
+    return dict(np.load(STATIC / C.GRID_FILE))
 
 
 if __name__ == "__main__":
