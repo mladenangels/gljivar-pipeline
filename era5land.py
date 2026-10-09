@@ -23,7 +23,7 @@ def _download(y, m, target):
     days = [f"{d:02d}" for d in range(1, last.day + 1)]
     req = {"variable": ["total_precipitation", "2m_temperature"], "year": str(y), "month": f"{m:02d}",
            "day": days, "time": ["00:00", "06:00", "12:00", "18:00"],
-           "area": [C.LAT1 + 0.05, C.LON0 - 0.05, C.LAT0 - 0.05, C.LON1 + 0.05],
+           "area": C.cds_area(0.05),
            "data_format": "netcdf", "download_format": "unarchived"}
     tmp = target.with_suffix(".part")
     for k in range(4):

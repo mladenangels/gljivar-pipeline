@@ -25,7 +25,7 @@ def _download(y, m, target):
     req = {"product_type": ["reanalysis"], "variable": ["2m_temperature", "2m_dewpoint_temperature"],
            "year": str(y), "month": f"{m:02d}", "day": [f"{d:02d}" for d in range(1, last.day + 1)],
            "time": ["00:00", "06:00"],
-           "area": [C.LAT1 + 0.3, C.LON0 - 0.3, C.LAT0 - 0.3, C.LON1 + 0.3],
+           "area": C.cds_area(0.3),
            "data_format": "netcdf", "download_format": "unarchived"}
     tmp = target.with_suffix(".part")
     for k in range(4):

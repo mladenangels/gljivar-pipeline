@@ -27,6 +27,22 @@ FORECAST_DAYS = 8             # today + 7
 EDL_TOKEN = Path.home() / ".gljivar_edl_token"
 
 
+def cds_area(margin):
+    """CDS "area" [N, W, S, E] around the box, with a jitter of up to 0.019 deg that changes daily.
+
+    CDS answers a request identical to an earlier one from its result cache. A month that
+    was still incomplete when first requested therefore came back with the same missing
+    days on every later run: the v1 job's ERA5-Land September file stayed at 2026-09-12 for
+    four weeks while a fresh request returned data to 2026-10-03. The jitter is smaller than
+    the margin to the next grid line (margins here are 0.05 and 0.3), so the returned grid
+    points do not change - only the request does.
+    """
+    import pandas as pd
+    j = (pd.Timestamp.now("UTC").dayofyear % 19 + 1) * 0.001
+    return [round(LAT1 + margin + j, 4), round(LON0 - margin - j, 4),
+            round(LAT0 - margin - j, 4), round(LON1 + margin + j, 4)]
+
+
 def lats():
     import numpy as np
     return np.round(np.arange(LAT0, LAT1 + STEP / 2, STEP), 2)
