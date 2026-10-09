@@ -63,8 +63,12 @@ def fetch(start, today):
         if p.to_timestamp() > today - pd.Timedelta(days=5):
             continue  # nothing published for this month yet
         next_month = (p + 1).to_timestamp()
-        final = f.exists() and (_last_hour(f) or pd.Timestamp(0)) >= next_month - pd.Timedelta(hours=6)
-        stale = f.exists() and time.time() - f.stat().st_mtime > 12 * 3600
+        have = (_last_hour(f) or pd.Timestamp(0)) if f.exists() else pd.Timestamp(0)
+        final = have >= next_month - pd.Timedelta(hours=6)
+        # Re-request a month that ends before what CDS could have by now (ERA5-Land runs ~5-6
+        # days late). Not by file age: actions/cache restores files with a fresh mtime, so the
+        # v1 job kept a September file that ended on 2026-09-12 for four weeks.
+        stale = have < min(next_month - pd.Timedelta(hours=6), today - pd.Timedelta(days=6))
         if not f.exists() or (not final and stale):
             f.unlink(missing_ok=True)
             _download(p.year, p.month, f)
