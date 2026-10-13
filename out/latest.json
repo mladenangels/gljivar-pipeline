@@ -1,8 +1,8 @@
 {
  "schemaVersion": 1,
- "dataVersion": 2026101301,
+ "dataVersion": 2026101309,
  "date": "2026-10-13",
- "generatedUtc": "2026-10-13T01:44:22Z",
+ "generatedUtc": "2026-10-13T09:05:40Z",
  "file": "forecast-2026-10-13.bin",
  "layout": "uint8 score 0-100 (percentile x season weight), [group][day][cell], cells as in grid.json",
  "groups": [
@@ -21,8 +21,8 @@
   "2026-10-19",
   "2026-10-20"
  ],
- "ecmwfRun": "2026-10-12T12Z",
- "iconRun": "2026-10-12T12Z",
+ "ecmwfRun": "2026-10-13T00Z",
+ "iconRun": "2026-10-13T00Z",
  "sources": {
   "2026-10-07": [
    "era5land",
@@ -75,8 +75,8 @@
    "ecmwf_fc"
   ],
   "2026-10-17": [
-   "ecmwf_fc",
-   "ecmwf_fc",
+   "icon_fc",
+   "icon_fc",
    "ecmwf_fc"
   ],
   "2026-10-18": [
