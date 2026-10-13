@@ -1,8 +1,8 @@
 {
  "schemaVersion": 2,
- "dataVersion": 2026101309,
+ "dataVersion": 2026101315,
  "date": "2026-10-13",
- "generatedUtc": "2026-10-13T09:05:56Z",
+ "generatedUtc": "2026-10-13T15:20:04Z",
  "file": "forecast-2026-10-13.bin",
  "layout": "uint8 score 0-100 (percentile x season weight), [group][day][cell], cells as in grid.json",
  "groups": [
