@@ -1,9 +1,9 @@
 {
  "schemaVersion": 1,
- "dataVersion": 2026101413,
- "date": "2026-10-14",
- "generatedUtc": "2026-10-14T13:09:59Z",
- "file": "forecast-2026-10-14.bin",
+ "dataVersion": 2026101422,
+ "date": "2026-10-15",
+ "generatedUtc": "2026-10-14T22:47:43Z",
+ "file": "forecast-2026-10-15.bin",
  "layout": "uint8 score 0-100 (percentile x season weight), [group][day][cell], cells as in grid.json",
  "groups": [
   "vrganj",
@@ -12,32 +12,27 @@
   "smrcak"
  ],
  "days": [
-  "2026-10-14",
   "2026-10-15",
   "2026-10-16",
   "2026-10-17",
   "2026-10-18",
   "2026-10-19",
   "2026-10-20",
-  "2026-10-21"
+  "2026-10-21",
+  "2026-10-22"
  ],
- "ecmwfRun": "2026-10-14T00Z",
- "iconRun": "2026-10-14T00Z",
+ "ecmwfRun": "2026-10-14T12Z",
+ "iconRun": "2026-10-14T12Z",
  "sources": {
-  "2026-10-07": [
+  "2026-10-08": [
    "era5land",
    "era5land",
    "era5"
   ],
-  "2026-10-08": [
-   "imerg_late",
-   "ecmwf_an",
-   "ecmwf_an"
-  ],
   "2026-10-09": [
    "imerg_late",
    "ecmwf_an",
-   "ecmwf_an"
+   "era5"
   ],
   "2026-10-10": [
    "imerg_late",
@@ -50,19 +45,19 @@
    "ecmwf_an"
   ],
   "2026-10-12": [
-   "ecmwf_an",
+   "imerg_late",
    "ecmwf_an",
    "ecmwf_an"
   ],
   "2026-10-13": [
-   "ecmwf_an",
+   "imerg_late",
    "ecmwf_an",
    "ecmwf_an"
   ],
   "2026-10-14": [
-   "icon_fc",
-   "icon_fc",
-   "ecmwf_fc"
+   "ecmwf_an",
+   "ecmwf_an",
+   "ecmwf_an"
   ],
   "2026-10-15": [
    "icon_fc",
@@ -95,6 +90,11 @@
    "ecmwf_fc"
   ],
   "2026-10-21": [
+   "ecmwf_fc",
+   "ecmwf_fc",
+   "ecmwf_fc"
+  ],
+  "2026-10-22": [
    "ecmwf_fc",
    "ecmwf_fc",
    "ecmwf_fc"
