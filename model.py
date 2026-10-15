@@ -67,6 +67,14 @@ def _percentile(m, X, DD=None):
     return np.interp(u, ref, np.linspace(0, 100, len(ref)))
 
 
+# Autumn fits learned their temperature optimum from continental finds only (0 Mediterranean
+# vrganj finds in training). Coastal oak forests fruit warmer, so Mediterranean cells see a
+# cooler temperature in these parts. Italian Mediterranean finds: within-AUC unchanged (0.665),
+# Sep-Nov find median 43 -> 57 (backtest/new_countries_check.py, 2026-10-15). Not applied to
+# lisicarka (AUC drops) and suncanica (neutral).
+MED_AUTUMN_TEMP_SHIFT = {"vrganj": 2.0}
+
+
 def score(model, season, RR, TG, day, med, DD=None):
     """Final 0-100 score per group for cells with lag matrices RR, TG and zone flags `med`.
 
@@ -75,11 +83,15 @@ def score(model, season, RR, TG, day, med, DD=None):
     optimum mostly from summer finds and rated real October finds at 28-38 (see export_model.py).
     """
     X, _ = features(RR, TG)
+    med = np.asarray(med, dtype=bool)
     out = {}
     for name, m in model["groups"].items():
         if "parts" in m:
             a = autumn_share(day)
-            pct = (1 - a) * _percentile(m["parts"]["summer"], X, DD) + a * _percentile(m["parts"]["autumn"], X, DD)
+            Xa = X
+            if name in MED_AUTUMN_TEMP_SHIFT and med.any():
+                Xa, _ = features(RR, TG - np.where(med, MED_AUTUMN_TEMP_SHIFT[name], 0.0)[:, None])
+            pct = (1 - a) * _percentile(m["parts"]["summer"], X, DD) + a * _percentile(m["parts"]["autumn"], Xa, DD)
         else:
             pct = _percentile(m, X, DD)
         w = np.where(med, season_weight(season["med"][name], day), season_weight(season["cont"][name], day))
