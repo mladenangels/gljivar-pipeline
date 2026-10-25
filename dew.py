@@ -52,6 +52,8 @@ def era5(days, today):
     if not len(days):
         return {}
     newest = min(days[-1] + pd.Timedelta(hours=6), pd.Timestamp(today) - pd.Timedelta(days=6))
+    if days[0] > newest:
+        return {}  # nothing ERA5 can have yet; don't sit in the CDS queue for it (see era5.py)
     C.CACHE.mkdir(parents=True, exist_ok=True)
     frames = []
     for p in pd.period_range(days[0].to_period("M"), days[-1].to_period("M"), freq="M"):

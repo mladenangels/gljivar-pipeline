@@ -114,18 +114,19 @@ def icon_eu(run):
 # ---------------------------------------------------------------- ECMWF IFS
 
 def _ecmwf(run, steps, param, target):
-    """data.ecmwf.int keeps only ~4 days of runs; the AWS mirror keeps them for years, so it
-    is the fallback for older runs (a new grid's archive starts empty) and for outages."""
+    """data.ecmwf.int keeps only ~4 days of runs; the AWS mirror keeps them for years. A named
+    run goes to AWS first: since 2026-10-20 data.ecmwf.int answers "503 Slow Down" and the
+    client retries every 120 s up to 500 times, which ran every job into its timeout.
+    data.ecmwf.int stays the fallback for a run AWS has not mirrored yet."""
     from ecmwf.opendata import Client
     kw = dict(type="fc", step=steps, param=[param], target=str(target))
-    if run is not None:
-        kw.update(date=run.strftime("%Y%m%d"), time=run.hour)
-    try:
+    if run is None:
         return Client(source="ecmwf", model="ifs", resol="0p25").retrieve(**kw)
-    except Exception:
-        if run is None:
-            raise
+    kw.update(date=run.strftime("%Y%m%d"), time=run.hour)
+    try:
         return Client(source="aws", model="ifs", resol="0p25").retrieve(**kw)
+    except Exception:
+        return Client(source="ecmwf", model="ifs", resol="0p25").retrieve(**kw)
 
 
 def ecmwf_latest_run():

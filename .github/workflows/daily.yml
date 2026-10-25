@@ -3,20 +3,14 @@ name: daily
 on:
   schedule:
     # Pickers leave before dawn, so the forecast has to be on the server by 04:00 Croatian
-    # time. Two things fight that. Nothing new is computable at 02z (DWD finishes ICON-EU
-    # 00z around 03z, ECMWF open data reaches +192 h around 07z), so an early run has to
-    # use the previous 12z runs. And GitHub starts scheduled workflows when it feels like
-    # it - this one has been landing five to six hours late every day.
+    # time. Nothing new is computable overnight (DWD finishes ICON-EU 00z around 03z, ECMWF
+    # open data reaches +192 h around 07z), so the night run uses the previous 12z runs.
     #
-    # Hence three runs, all UTC, each one publishing the Croatian date it wakes up in:
-    #   19:50  on time it publishes today late in the evening; five hours late it becomes
-    #          tomorrow's forecast, on the server around 03:00 Croatian time
-    #   01:50  the same job for whenever GitHub is punctual
-    #   07:40  today's ICON-EU 00z and the IMERG for yesterday are out, so this run is
-    #          twelve hours fresher and replaces the earlier ones for late risers
-    - cron: "50 19 * * *"
-    - cron: "50 1 * * *"
-    - cron: "40 7 * * *"
+    # One run a day (2026-10-25): three runs used up the 2000 free Actions minutes of this
+    # private repo. 23:10 UTC is already the next Croatian day (00:10 CET / 01:10 CEST), so
+    # the run publishes tomorrow's date even when GitHub is punctual; it has been starting
+    # 2-5 hours late, which still puts the forecast on the server before dawn.
+    - cron: "10 23 * * *"
   workflow_dispatch:
     inputs:
       date:
@@ -33,7 +27,8 @@ concurrency:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # a healthy run takes 5-10 min; 90 min of retrying a throttled server burned the minutes
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
 

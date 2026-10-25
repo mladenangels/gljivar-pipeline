@@ -53,7 +53,8 @@ def fetch(days, today):
     days = pd.DatetimeIndex(days)
     # CDS publishes ERA5 ~5 days late: asking for anything newer just re-downloads the month
     newest = min(days[-1] + pd.Timedelta(days=1), pd.Timestamp(today) - pd.Timedelta(days=6)) if len(days) else None
-    if not len(days):
+    if not len(days) or days[0] > newest:
+        # no gap day can be in ERA5 yet; the month request still sits ~50 min in the CDS queue
         return {}
     C.CACHE.mkdir(parents=True, exist_ok=True)
     frames = []
