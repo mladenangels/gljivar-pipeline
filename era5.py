@@ -8,12 +8,11 @@ weeks of the gap were filled with IMERG, which on Pohorje read 4.7 mm for a 20 m
 One request per calendar month (hourly tp), cached like era5land.py; interpolated to the
 output grid. Rain only: temperature keeps its own sources (ECMWF analysis).
 """
-import time
-
 import numpy as np
 import pandas as pd
 import xarray as xr
 
+import cds
 import config as C
 
 
@@ -29,16 +28,7 @@ def _download(y, m, target):
            "time": [f"{h:02d}:00" for h in range(24)],
            "area": C.cds_area(0.3),
            "data_format": "netcdf", "download_format": "unarchived"}
-    tmp = target.with_suffix(".part")
-    for k in range(4):
-        try:
-            cdsapi.Client(quiet=True, progress=False).retrieve("reanalysis-era5-single-levels", req, str(tmp))
-            tmp.rename(target)
-            return
-        except Exception as e:  # CDS queues fail now and then
-            err = e
-            time.sleep(30 * (k + 1))
-    raise RuntimeError(f"ERA5 {y}-{m:02d} failed: {err}")
+    cds.retrieve("reanalysis-era5-single-levels", req, target, f"ERA5 {y}-{m:02d}")
 
 
 def _load(path):
@@ -69,7 +59,10 @@ def fetch(days, today):
             final = have >= (p + 1).to_timestamp()
             # mtime is no use here: actions/cache restores files with a fresh one
             if not final and have < newest:
-                f.unlink()
+                try:
+                    _download(p.year, p.month, f)
+                except RuntimeError as e:  # the cached month is still better than nothing
+                    print(f"{e}; using the cached month", flush=True)
         if not f.exists():
             _download(p.year, p.month, f)
         frames.append(_load(f)["tp"].load())

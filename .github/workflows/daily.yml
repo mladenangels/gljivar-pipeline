@@ -27,8 +27,8 @@ concurrency:
 jobs:
   run:
     runs-on: ubuntu-latest
-    # a healthy run takes 5-10 min; 90 min of retrying a throttled server burned the minutes
-    timeout-minutes: 40
+    # a healthy run (v1 + v2) takes ~15 min; each CDS request gives up after 6 min (cds.py)
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
 

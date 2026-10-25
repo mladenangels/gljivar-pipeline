@@ -6,12 +6,11 @@ stalled since 2026-09-12, so past days come from ERA5 (0.25 deg, ~5 days late), 
 last days and the forecast from ECMWF IFS (forecast.ecmwf_days). Depression, unlike the
 dewpoint itself, needs no elevation correction: t2m and d2m shift together.
 """
-import time
-
 import numpy as np
 import pandas as pd
 import xarray as xr
 
+import cds
 import config as C
 
 
@@ -27,16 +26,7 @@ def _download(y, m, target):
            "time": ["00:00", "06:00"],
            "area": C.cds_area(0.3),
            "data_format": "netcdf", "download_format": "unarchived"}
-    tmp = target.with_suffix(".part")
-    for k in range(4):
-        try:
-            cdsapi.Client(quiet=True, progress=False).retrieve("reanalysis-era5-single-levels", req, str(tmp))
-            tmp.rename(target)
-            return
-        except Exception as e:  # CDS queues fail now and then
-            err = e
-            time.sleep(30 * (k + 1))
-    raise RuntimeError(f"ERA5 dew {y}-{m:02d} failed: {err}")
+    cds.retrieve("reanalysis-era5-single-levels", req, target, f"ERA5 dew {y}-{m:02d}")
 
 
 def _load(path):
@@ -66,7 +56,10 @@ def era5(days, today):
                 have = pd.DatetimeIndex(d.time.values)[ok].max() if ok.any() else pd.Timestamp(0)
             final = have >= (p + 1).to_timestamp() - pd.Timedelta(hours=18)
             if not final and have < newest:
-                f.unlink()
+                try:
+                    _download(p.year, p.month, f)
+                except RuntimeError as e:  # the cached month is still better than nothing
+                    print(f"{e}; using the cached month", flush=True)
         if not f.exists():
             _download(p.year, p.month, f)
         with _load(f) as d:

@@ -4,12 +4,11 @@ One request per calendar month (00/06/12/18 UTC, tp + t2m), cached. The current 
 previous month are re-requested when the cache does not yet reach the newest data CDS
 could have (ERA5-Land runs ~6 days behind). Definitions match backtest/build_era5land.py.
 """
-import time
-
 import numpy as np
 import pandas as pd
 import xarray as xr
 
+import cds
 import config as C
 
 
@@ -25,16 +24,7 @@ def _download(y, m, target):
            "day": days, "time": ["00:00", "06:00", "12:00", "18:00"],
            "area": C.cds_area(0.05),
            "data_format": "netcdf", "download_format": "unarchived"}
-    tmp = target.with_suffix(".part")
-    for k in range(4):
-        try:
-            cdsapi.Client(quiet=True, progress=False).retrieve("reanalysis-era5-land", req, str(tmp))
-            tmp.rename(target)
-            return
-        except Exception as e:  # CDS queues fail now and then
-            err = e
-            time.sleep(30 * (k + 1))
-    raise RuntimeError(f"ERA5-Land {y}-{m:02d} failed: {err}")
+    cds.retrieve("reanalysis-era5-land", req, target, f"ERA5-Land {y}-{m:02d}")
 
 
 def _load(path):
@@ -70,8 +60,12 @@ def fetch(start, today):
         # v1 job kept a September file that ended on 2026-09-12 for four weeks.
         stale = have < min(next_month - pd.Timedelta(hours=6), today - pd.Timedelta(days=6))
         if not f.exists() or (not final and stale):
-            f.unlink(missing_ok=True)
-            _download(p.year, p.month, f)
+            try:
+                _download(p.year, p.month, f)
+            except RuntimeError as e:
+                if not f.exists():
+                    raise
+                print(f"{e}; using the cached month", flush=True)
         if f.exists():
             frames.append(_load(f)[["tp", "t2m"]].load())
     d = xr.concat(frames, dim="time").sortby("time")
