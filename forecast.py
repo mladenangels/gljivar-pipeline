@@ -114,19 +114,21 @@ def icon_eu(run):
 # ---------------------------------------------------------------- ECMWF IFS
 
 def _ecmwf(run, steps, param, target):
-    """data.ecmwf.int keeps only ~4 days of runs; the AWS mirror keeps them for years. A named
-    run goes to AWS first: since 2026-10-20 data.ecmwf.int answers "503 Slow Down" and the
-    client retries every 120 s up to 500 times, which ran every job into its timeout.
-    data.ecmwf.int stays the fallback for a run AWS has not mirrored yet."""
+    """data.ecmwf.int keeps only ~4 days of runs; the mirrors keep them for years. A named run
+    goes to the Azure mirror first: since 2026-10-20 the AWS bucket (and data.ecmwf.int at
+    times) answers "503 Slow Down" and the client retries every 120 s up to 500 times, which
+    ran every job into its timeout. Azure served the same fields in ~2 s (tested 2026-10-25)."""
     from ecmwf.opendata import Client
     kw = dict(type="fc", step=steps, param=[param], target=str(target))
     if run is None:
         return Client(source="ecmwf", model="ifs", resol="0p25").retrieve(**kw)
     kw.update(date=run.strftime("%Y%m%d"), time=run.hour)
-    try:
-        return Client(source="aws", model="ifs", resol="0p25").retrieve(**kw)
-    except Exception:
-        return Client(source="ecmwf", model="ifs", resol="0p25").retrieve(**kw)
+    for src in ("azure", "ecmwf"):
+        try:
+            return Client(source=src, model="ifs", resol="0p25").retrieve(**kw)
+        except Exception:
+            pass
+    return Client(source="aws", model="ifs", resol="0p25").retrieve(**kw)
 
 
 def ecmwf_latest_run():
