@@ -1,9 +1,9 @@
 {
  "schemaVersion": 1,
- "dataVersion": 2026102611,
- "date": "2026-10-26",
- "generatedUtc": "2026-10-26T11:46:03Z",
- "file": "forecast-2026-10-26.bin",
+ "dataVersion": 2026102702,
+ "date": "2026-10-27",
+ "generatedUtc": "2026-10-27T02:03:50Z",
+ "file": "forecast-2026-10-27.bin",
  "layout": "uint8 score 0-100 (percentile x season weight), [group][day][cell], cells as in grid.json",
  "groups": [
   "vrganj",
@@ -12,31 +12,21 @@
   "smrcak"
  ],
  "days": [
-  "2026-10-26",
   "2026-10-27",
   "2026-10-28",
   "2026-10-29",
   "2026-10-30",
   "2026-10-31",
   "2026-11-01",
-  "2026-11-02"
+  "2026-11-02",
+  "2026-11-03"
  ],
- "ecmwfRun": "2026-10-26T00Z",
- "iconRun": "2026-10-26T00Z",
+ "ecmwfRun": "2026-10-26T12Z",
+ "iconRun": "2026-10-26T12Z",
  "sources": {
-  "2026-10-19": [
-   "era5land",
-   "era5land",
-   "era5"
-  ],
-  "2026-10-20": [
-   "era5",
-   "icon_fc",
-   "era5"
-  ],
   "2026-10-21": [
-   "imerg_late",
-   "ecmwf_an",
+   "era5land",
+   "era5land",
    "era5"
   ],
   "2026-10-22": [
@@ -55,14 +45,14 @@
    "ecmwf_an"
   ],
   "2026-10-25": [
-   "imerg_early",
+   "imerg_late",
    "ecmwf_an",
    "ecmwf_an"
   ],
   "2026-10-26": [
-   "icon_fc",
-   "icon_fc",
-   "ecmwf_fc"
+   "ecmwf_an",
+   "ecmwf_an",
+   "ecmwf_an"
   ],
   "2026-10-27": [
    "icon_fc",
@@ -98,9 +88,14 @@
    "ecmwf_fc",
    "ecmwf_fc",
    "ecmwf_fc"
+  ],
+  "2026-11-03": [
+   "ecmwf_fc",
+   "ecmwf_fc",
+   "ecmwf_fc"
   ]
  },
  "imergScaled": true,
- "era5landLagDays": 6,
+ "era5landLagDays": 5,
  "attribution": "Contains modified Copernicus Climate Change Service information (ERA5-Land); NASA GPM IMERG; DWD ICON-EU (CC BY 4.0); ECMWF open data (CC BY 4.0)."
 }
