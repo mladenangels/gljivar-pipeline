@@ -1,9 +1,9 @@
 {
  "schemaVersion": 2,
- "dataVersion": 2026103002,
- "date": "2026-10-30",
- "generatedUtc": "2026-10-30T02:42:56Z",
- "file": "forecast-2026-10-30.bin",
+ "dataVersion": 2026103102,
+ "date": "2026-10-31",
+ "generatedUtc": "2026-10-31T02:33:19Z",
+ "file": "forecast-2026-10-31.bin",
  "layout": "uint8 score 0-100 (percentile x season weight), [group][day][cell], cells as in grid.json",
  "groups": [
   "vrganj",
@@ -12,31 +12,21 @@
   "smrcak"
  ],
  "days": [
-  "2026-10-30",
   "2026-10-31",
   "2026-11-01",
   "2026-11-02",
   "2026-11-03",
   "2026-11-04",
   "2026-11-05",
-  "2026-11-06"
+  "2026-11-06",
+  "2026-11-07"
  ],
- "ecmwfRun": "2026-10-29T12Z",
- "iconRun": "2026-10-29T12Z",
+ "ecmwfRun": "2026-10-30T12Z",
+ "iconRun": "2026-10-30T12Z",
  "sources": {
-  "2026-10-23": [
-   "era5land",
-   "era5land",
-   "era5"
-  ],
-  "2026-10-24": [
-   "ecmwf_an",
-   "ecmwf_an",
-   "ecmwf_an"
-  ],
   "2026-10-25": [
-   "ecmwf_an",
-   "ecmwf_an",
+   "era5land",
+   "era5land",
    "ecmwf_an"
   ],
   "2026-10-26": [
@@ -60,9 +50,9 @@
    "ecmwf_an"
   ],
   "2026-10-30": [
-   "icon_fc",
-   "icon_fc",
-   "ecmwf_fc"
+   "ecmwf_an",
+   "ecmwf_an",
+   "ecmwf_an"
   ],
   "2026-10-31": [
    "icon_fc",
@@ -80,8 +70,8 @@
    "ecmwf_fc"
   ],
   "2026-11-03": [
-   "ecmwf_fc",
-   "ecmwf_fc",
+   "icon_fc",
+   "icon_fc",
    "ecmwf_fc"
   ],
   "2026-11-04": [
@@ -98,19 +88,24 @@
    "ecmwf_fc",
    "ecmwf_fc",
    "ecmwf_fc"
+  ],
+  "2026-11-07": [
+   "ecmwf_fc",
+   "ecmwf_fc",
+   "ecmwf_fc"
   ]
  },
  "imergScaled": false,
- "era5landLagDays": 6,
+ "era5landLagDays": 5,
  "attribution": "Contains modified Copernicus Climate Change Service information (ERA5-Land, ERA5); DWD ICON-EU (CC BY 4.0); ECMWF open data (CC BY 4.0).",
  "rain": {
-  "file": "rain-2026-10-30.bin",
+  "file": "rain-2026-10-31.bin",
   "periods": [
    7,
    14
   ],
-  "endDay": "2026-10-29",
-  "estimatedFrom": "2026-10-24",
+  "endDay": "2026-10-30",
+  "estimatedFrom": "2026-10-26",
   "layout": "uint16 LE, tenths of mm, [period][cell]"
  }
 }
